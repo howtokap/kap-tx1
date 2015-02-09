@@ -1,7 +1,7 @@
 # kap-tx1
 An Arduino-based R/C transmitter for Kite Aerial Photography.
 
-## To-Do:
-* Upload initial file set.
-* Populate Wiki with info from design doc.
+Design documentation can be found in doc/KAP RC Arduino.pdf
+
+Discussion of this project hosted at [the KAP Forum](http://arch.ced.berkeley.edu/kap/discuss/index.php?p=/discussion/5325/repackaged-r-c-arduino-kap-controller)
 
