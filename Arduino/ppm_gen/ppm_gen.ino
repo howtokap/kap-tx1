@@ -1,22 +1,11 @@
-/* Pro Micro Test Code
-   by: Nathan Seidle
-   modified by: Jim Lindblom
-   SparkFun Electronics
-   date: September 16, 2013
-   license: Public Domain - please use this code however you'd like.
-   It's provided as a learning tool.
-
-   This code is provided to show how to control the SparkFun
-   ProMicro's TX and RX LEDs within a sketch. It also serves
-   to explain the difference between Serial.print() and
-   Serial1.print().
-*/
-
-int RXLED = 17;  // The RX LED has a defined Arduino pin
-// The TX LED was not so lucky, we'll need to use pre-defined
-// macros (TXLED1, TXLED0) to control that.
-// (We could use the same macros for the RX LED too -- RXLED1,
-//  and RXLED0.)
+// PPM Generation with Timer1, Pin D10.
+// written by David Wheeler
+// 
+// The code initializes the Timer1 peripheral, then services its interrupt cyclically.  
+// A PPM signal of 50Hz is generated on pin D10.
+// Currently, all servo positions are centered (1.5ms servo times)
+// To move the servos, modify the program to write values in ppmTime[1] through ppmTime[6].
+// Values should range from 2000 (1ms) to 4000 (2ms).
 
 int debugPin = 13;
 
@@ -24,7 +13,7 @@ int debugPin = 13;
 #define PPM_PHASES (PPM_CHANNELS+1)
 #define PPM_RESYNC_PHASE (0)
 #define PPM_PULSE_WIDTH (800)  // 400uS
-#define PPM_CENTER (4000)      // 1.5mS  TODO: change back to 3000
+#define PPM_CENTER (3000)      // 1.5mS
 #define PPM_FRAME_LEN (64000)  // 32mS -> ~30Hz
 
 // Values for Timer1 Config registers
