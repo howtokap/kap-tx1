@@ -625,14 +625,14 @@ void showShots()
 
     // create text in buffer
     if (lcdState.autokap) {
-	strcpy(buf, "AUTO");
+	strcpy_P(buf, (const char *)F("AUTO"));
     }
     else if (lcdState.flags & INV_AUTO_COUNT) {
 	// This control is highlighted, so show "MAN" instead of count
-	strcpy(buf, " MAN");
+	strcpy_P(buf, (const char *)F(" MAN"));
     }
     else {
-	sprintf(buf, "%4d", lcdState.shots);
+	sprintf_P(buf, (const char *)F("%4d"), lcdState.shots);
     }
 
     // erase earlier content, set text color based on inverse state
@@ -1055,9 +1055,9 @@ bool jsIsSlidingUD()
     return (move > JS_SLIDE_THRESH);
 }
 
-const float TAN_37_5 = 0.76732699;
-const float TAN_22_5 = 0.41421356;
-const float TAN_7_5 =  0.13165250;
+#define TAN_37_5 (0.76732699)
+#define TAN_22_5 (0.41421356)
+#define TAN_7_5 (0.13165250)
 
 // map joystick x, y into sectors 0-23, in standard orientation
 // (0 is due "east", 6 is north, 12 west, 18 south.)
@@ -1608,14 +1608,15 @@ void shootCluster()
 	struct PanTilt_s aimPointBase;
         struct PanTilt_s aimPoint;
 
+        // TODO-DW : debug: why does lowered shot dip so low?
 	// queue a series of shots.
-	static const struct PanTilt_s seq_high[SEQ_LEN] = {
+	static const struct PanTilt_s seq_high[SEQ_LEN] PROGMEM = {
 	    {0, 0}, {1, 1}, {2, 0}, {1, -1}, {-1, -1}, {-2, 0}, {-1, 1},
 	};
-	static const struct PanTilt_s seq_med[SEQ_LEN] = {
+	static const struct PanTilt_s seq_med[SEQ_LEN] PROGMEM = {
 	    {0, 0}, {0, 2}, {0, -2}, {-4, 0}, {-2, 1}, {2, 1}, {4, 0},
 	};
-	static const struct PanTilt_s seq_low[SEQ_LEN] = {
+	static const struct PanTilt_s seq_low[SEQ_LEN] PROGMEM = {
 	    {0, 0}, {0, 2}, {0, -2}, {4, -2}, {4, 2}, {-4, 2}, {-4, -2},
 	};
         const struct PanTilt_s *pSeq;
@@ -1645,11 +1646,14 @@ void shootCluster()
         }
 
 	for (int n = 0; n < SEQ_LEN; n++) {
+            PanTilt_s offset;
+            memcpy_P(&offset, pSeq+n, sizeof(PanTilt_s));
+            
             aimPoint = aimPointBase;
-	    aimPoint.pan += pSeq[n].pan;
+	    aimPoint.pan += offset.pan;  // Get pSeq[n] from flash.
             if (aimPoint.pan < 0) aimPoint.pan += 24;
             if (aimPoint.pan >= 24) aimPoint.pan -= 24;
-	    aimPoint.tilt += pSeq[n].tilt;
+	    aimPoint.tilt += offset.tilt;
 
 	    if (isValidPanTilt(&aimPoint)) {
 		queueShot(&aimPoint);
@@ -1715,7 +1719,7 @@ void shootHpan()
 
 void shootQuad()
 {
-  static const struct PanTilt_s quadSeq[] = {
+  static const struct PanTilt_s quadSeq[] PROGMEM = {
     {-3, 0}, {-3, -2}, {-3, -4}, {-3, -6},
     {-1, 0}, {-1, -2},
     { 0, -4},
@@ -1729,16 +1733,18 @@ void shootQuad()
     reference = model.userPos;
     reference.tilt = 0;
     for (int n = 0; n < sizeof(quadSeq)/sizeof(quadSeq[0]); n++) {
+      PanTilt_s offset;
+      memcpy_P(&offset, quadSeq+n, sizeof(PanTilt_s));
       aimPoint = reference;
-      aimPoint.pan = addPan(aimPoint.pan, quadSeq[n].pan);
-      aimPoint.tilt = addTilt(aimPoint.tilt, quadSeq[n].tilt);
+      aimPoint.pan = addPan(aimPoint.pan, offset.pan);
+      aimPoint.tilt = addTilt(aimPoint.tilt, offset.tilt);
       queueShot(&aimPoint);
     }
 }
 
 void shoot360()
 {
-  static const struct PanTilt_s seq360[] = {
+  static const struct PanTilt_s seq360[] PROGMEM = {
     { 0, 0}, { 0, -2}, { 0, -4}, { 0, -6},
     { 2, 0}, { 2, -2},
     { 3, -4},
@@ -1753,9 +1759,11 @@ void shoot360()
       reference.tilt = 0;
       reference.pan = addPan(model.userPos.pan, i*6);
       for (int n = 0; n < sizeof(seq360)/sizeof(seq360[0]); n++) {
+        PanTilt_s offset;
+        memcpy_P(&offset, seq360+n, sizeof(PanTilt_s));
         aimPoint = reference;
-        aimPoint.pan = addPan(aimPoint.pan, seq360[n].pan);
-        aimPoint.tilt = addTilt(aimPoint.tilt, seq360[n].tilt);
+        aimPoint.pan = addPan(aimPoint.pan, offset.pan);
+        aimPoint.tilt = addTilt(aimPoint.tilt, offset.tilt);
         queueShot(&aimPoint);
       }
     }
@@ -1814,34 +1822,36 @@ typedef struct {
     int pwm;
 } UserToPwmEntry;
 
-UserToPwmEntry panTable[] = {  // -1600 ok, 
-    {18, -1600},    // 18
-    {17, -1466},
-    {16, -1333},
-    {15, -1200},
-    {14, -1066},
-    {13, -933},
-    {12, -800},      // 12
-    {11, -666},
-    {10, -533},
-    { 9, -400},
-    { 8, -266},
-    { 7, -133},
+        // TODO-DW : recover RAM!
+const UserToPwmEntry panTable[] = {  // -1600 ok, 
+    {18, 1600},    // 18
+    {17, 1466},
+    {16, 1333},
+    {15, 1200},
+    {14, 1066},
+    {13, 933},
+    {12, 800},      // 12
+    {11, 666},
+    {10, 533},
+    { 9, 400},
+    { 8, 266},
+    { 7, 133},
     { 6, 0},         // 6
-    { 5, 133},
-    { 4, 266},
-    { 3, 400},
-    { 2, 533},
-    { 1, 666},
-    { 0, 800},       // 0
-    {23, 933},       // 23
-    {22, 1066},
-    {21, 1200},
-    {20, 1333},
-    {19, 1466},
-    {18, 1600},      // 18
+    { 5, -133},
+    { 4, -266},
+    { 3, -400},
+    { 2, -533},
+    { 1, -666},
+    { 0, -800},       // 0
+    {23, -933},       // 23
+    {22, -1066},
+    {21, -1200},
+    {20, -1333},
+    {19, -1466},
+    {18, -1600},      // 18
 };
 
+        // TODO-DW : recover RAM!
 UserToPwmEntry tiltTable[] = {
     {15, -1496},  // -45
     {16, -1231},
@@ -2249,7 +2259,7 @@ void lcdSetup(void)
 void setup()
 {
     Serial.begin(9600);
-    Serial.println("Hello!");
+    Serial.println(F("Hello!"));
 
     jsSetup();
     modelSetup();
