@@ -1,0 +1,258 @@
+#!/bin/bash
+
+# stroke-width expands on both sides of arc
+# 0,0 is center of ellipse, top left of image
+# 90,90 is x, y radii lengths
+# 10,50 is start angle, end angle
+# -rotate 0 rotates entire canvas
+
+ARC_R=26
+ARC_THICK=5
+LINEWIDTH=2
+CENTER=31.5,31.5
+CIRC_R=31.5,31.5
+TICK_R=30.5,30.5
+TICK_WIDTH=2.5
+
+mkdir -p out
+
+# convert -size 100x100 xc: +antialias -fill none -stroke black -draw "stroke-width 50 ellipse 0,0 90,90 20,80" arc_background.gif
+
+#circle
+#  -draw "stroke-width $LINEWIDTH line 59,31 63,31" \
+#  -draw "stroke-width $LINEWIDTH line 0,31 3,31" \
+#  -draw "stroke-width $LINEWIDTH line 31,0 31,3" \
+#  -draw "stroke-width $LINEWIDTH line 31,59 31,63" \
+#  -draw "stroke-width $LINEWIDTH line 9,9 12,12" \
+#  -draw "stroke-width $LINEWIDTH line 53,9 50,12" \
+#  -draw "stroke-width $LINEWIDTH line 50,50 53,53" \
+#  -draw "stroke-width $LINEWIDTH line 9,53 12,50" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ.gif
+
+# -45 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 113,157" \
+  out/arc_15.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 113,157" \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_15.gif
+
+# -30 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 98,142" \
+  out/arc_16.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 98,142" \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_16.gif
+
+# -15 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 83,127" \
+  out/arc_17.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 83,127" \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_17.gif
+
+# 0 degrees  (down)
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 68,112" \
+  out/arc_18.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 68,112" \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_18.gif
+
+# 15 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 53,97"  \
+  out/arc_19.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 53,97"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_19.gif
+
+# 30 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 38,82"  \
+  out/arc_20.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 38,82"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_20.gif
+
+# 45 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 23,67"  \
+  out/arc_21.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 23,67"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_21.gif
+
+# 60 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 8,52"  \
+  out/arc_22.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R 8,52"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_22.gif
+
+# 75 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -7,37"  \
+  out/arc_23.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -7,37"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_23.gif
+
+# 90 degrees (horizontal)
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -22,22"  \
+  out/arc_0.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -22,22"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_0.gif
+
+# 105 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -37,7"  \
+  out/arc_1.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -37,7"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_1.gif
+
+# 120 degrees
+#  -draw "stroke-width $LINEWIDTH ellipse $CENTER $CENTER 0,360" \
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -52,-8"  \
+  out/arc_2.gif
+convert -size 64x64 xc: +antialias -fill none -stroke black \
+  -draw "stroke-width $ARC_THICK ellipse $CENTER $ARC_R,$ARC_R -52,-8"  \
+  -draw "stroke-width 0.75 ellipse $CENTER $CIRC_R 0,360" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 359,1" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 44,46" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 89,91" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 134,136" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 179,181" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 224,226" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 269,271" \
+  -draw "stroke-width $TICK_WIDTH ellipse $CENTER $TICK_R 314,316" \
+  out/circ_2.gif
+
+

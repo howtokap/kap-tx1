@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# stroke-width expands on both sides of arc
+# ellipse 0,0 90,90 10,50:
+#   0,0 is center of ellipse, top left of image
+#   90,90 is x, y radii lengths
+#   10,50 is start angle, end angle (CW from X axis)
+# -rotate 0 rotates entire canvas
+
+mkdir -p out
+
+convert -size 32x32 canvas:white -fill none -stroke black +antialias \
+  -fill black -draw "circle 16,16 10,16" \
+  out/single.gif
+
+convert -size 32x32 canvas:white -fill none -stroke black +antialias \
+  -fill black -draw "circle 16,16 12,16" \
+  -fill black -draw "circle 5,16 1,16" \
+  -fill black -draw "circle 27,16 23,16" \
+  -fill black -draw "circle 10,5 6,5" \
+  -fill black -draw "circle 21,5 17,5" \
+  -fill black -draw "circle 10,27 6,27" \
+  -fill black -draw "circle 21,27 17,27" \
+  out/cluster.gif
+
+convert -size 32x32 canvas:white -fill none -stroke black +antialias \
+  -fill black -draw "circle 16,16 12,16" \
+  -fill black -draw "circle 5,16 1,16" \
+  -fill black -draw "circle 27,16 23,16" \
+  out/hpan2.gif
+
+convert -size 32x32 canvas:white -fill none -stroke black +antialias \
+  -fill black -draw "circle 16,16 12,16" \
+  -fill black -draw "circle 5,16 1,16" \
+  -fill black -draw "circle 27,16 23,16" \
+  -rotate 90 \
+  out/vpan2.gif
+
