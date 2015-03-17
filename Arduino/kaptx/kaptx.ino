@@ -2,6 +2,9 @@
 #include <Adafruit_SharpMem.h>
 #include <avr/pgmspace.h>
 
+// for debug prints
+char s[40];
+
 // Pins for LCD module.  (Any pins can be used.)
 #define LCD_SCK 4
 #define LCD_MOSI 5
@@ -987,8 +990,8 @@ int iabs(int x)
 #define JS_MID (512)
 #define JS_MAX (1023)
 
-#define JS_NEUTRAL 300 // (450)
-#define JS_PLUS (500)
+#define JS_NEUTRAL (350) // (450)
+#define JS_PLUS (400) // (500)
 #define JS_SLIDE_THRESH (100)
 
 struct Js_s {
@@ -1056,7 +1059,9 @@ bool jsIsSlidingUD()
 }
 
 #define TAN_37_5 (0.76732699)
+#define TAN_33_75 (0.66817864)
 #define TAN_22_5 (0.41421356)
+#define TAN_11_25 (0.19891237)
 #define TAN_7_5 (0.13165250)
 
 // map joystick x, y into sectors 0-23, in standard orientation
@@ -1151,6 +1156,63 @@ int jsGetIndex16()
     if (fold_xy) index = 3 - index;
     if (fold_y) index = 7 - index;
     if (fold_x) index = 15 - index;
+
+    return index;
+}
+
+// map joystick x, y into sectors 0-15, in standard orientation
+// (0 is due "east", 4 is north, 8 west, 12 south.)
+// difference between this and jsGetIndex16() is that these regions are centered on
+// the cardinal directions.  
+int jsGetIndex16_offs()
+{
+    int index = 0;
+    int x = js.x;
+    int y = js.y;
+    bool fold_y = false;
+    bool fold_x = false;
+    bool fold_xy = false;
+    int tmp;
+
+    // fold x, y into 0, 1 positions
+    if (y < 0) {
+	fold_x = true;
+	y = -y;
+    }
+    if (x < 0) {
+	fold_y = true;
+	x = -x;
+    }
+    if (y > x) {
+	fold_xy = true;
+	tmp = x;
+	x = y;
+	y = tmp;
+    }
+
+    float t = (float)y/(float)x;
+    if (t < TAN_22_5) {    
+      if (t < TAN_11_25) {
+	index = 0;
+      }
+      else {
+          index = 1;
+      }
+    }
+    else {
+      if (t < TAN_33_75) {
+        index = 1;
+      }
+      else {
+        index = 2;
+      }
+    }
+
+    // unfold as necessary
+    if (fold_xy) index = 4 - index;
+    if (fold_y) index = 8 - index;
+    if (fold_x) index = 16 - index;
+    if (index == 16) index = 0;
 
     return index;
 }
@@ -1439,42 +1501,46 @@ void setJsAuto()
 // Interpret joystick motion as operator intentions
 void jsUpdate()
 {
-    int pos = jsGetIndex24();
-
     switch(model.jsState) {
 	case JS_IDLE:
 	    if (jsIsOut()) {
-		switch (pos) {
+		// int pos = jsGetIndex24();
+                int pos = jsGetIndex16_offs();
+                
+                switch (pos) {
 		    case 0:
 			// joystick is right
 			model.jsState = JS_RIGHT;
 			jsSetSlideStart();
 			break;
-		    case 3:
+		    case 2:
 			// joystick is NE, mode select
 			model.jsState = JS_SET_MODE;
 			jsSetSlideStart();
 			break;
-		    case 6:
+		    case 4:
 			// joystick is N, tilt 
 			model.jsState = JS_UP;
 			jsSetSlideStart();
 			break;
-		    case 9:
+		    case 6:
                         // joystick is NW, set Auto
                         model.jsState = JS_SET_AUTO;
 			break;
-		    case 12:
+		    case 8:
 			// joystick is left
 			model.jsState = JS_LEFT;
 			jsSetSlideStart();
 			break;
-		    case 18:
+                    case 10:
+                        // future home of config menu
+                        break;
+		    case 12:
 			// joystick is down
 			model.jsState = JS_DOWN;
 			jsSetSlideStart();
 			break;
-                    case 21:
+                    case 14:
                     	// joystick is SE, HoVer select
 			model.jsState = JS_SET_HOVER;
                         break;
@@ -1593,6 +1659,8 @@ void shootSingle()
 
 boolean isValidPanTilt(struct PanTilt_s *pt)
 {
+    // comparison looks wrong but it's actually right.
+    // TILT_MAX = 2, TILT_MIN = 15.  Unreachable zone is 3-14.
     if ((pt->tilt > TILT_MAX) && (pt->tilt < TILT_MIN)) {
 	return false;
     }
@@ -1608,13 +1676,12 @@ void shootCluster()
 	struct PanTilt_s aimPointBase;
         struct PanTilt_s aimPoint;
 
-        // TODO-DW : debug: why does lowered shot dip so low?
 	// queue a series of shots.
 	static const struct PanTilt_s seq_high[SEQ_LEN] PROGMEM = {
 	    {0, 0}, {1, 1}, {2, 0}, {1, -1}, {-1, -1}, {-2, 0}, {-1, 1},
 	};
 	static const struct PanTilt_s seq_med[SEQ_LEN] PROGMEM = {
-	    {0, 0}, {0, 2}, {0, -2}, {-4, 0}, {-2, 1}, {2, 1}, {4, 0},
+	    {0, 0}, {1, 1}, {2, 0}, {2, -1}, {-2, -1}, {-2, 0}, {-1, 1},
 	};
 	static const struct PanTilt_s seq_low[SEQ_LEN] PROGMEM = {
 	    {0, 0}, {0, 2}, {0, -2}, {4, -2}, {4, 2}, {-4, 2}, {-4, -2},
@@ -1624,17 +1691,21 @@ void shootCluster()
         // base aim point is user's aim point initially
         aimPointBase = model.userPos;
         
+        // get tilt off the rails so cluster doesn't collapse on itself.
+        if (aimPointBase.tilt == TILT_MAX) aimPointBase.tilt -= 1;
+        if (aimPointBase.tilt == TILT_MIN) aimPointBase.tilt += 1;
+        
         // Choose sequence
-        if (model.userPos.tilt <= 2) {
+        if (aimPointBase.tilt <= 2) {
             pSeq = seq_high;
         }
-        else if (model.userPos.tilt >= 22) {
+        else if (aimPointBase.tilt >= 22) {
             pSeq = seq_high;
         }
-        else if (model.userPos.tilt >= 19) {
+        else if (aimPointBase.tilt >= 19) {
             pSeq = seq_med;
         }
-        else if (model.userPos.tilt == 18) {
+        else if (aimPointBase.tilt == 18) {
             pSeq = seq_low;
         }
         else {
@@ -1650,14 +1721,12 @@ void shootCluster()
             memcpy_P(&offset, pSeq+n, sizeof(PanTilt_s));
             
             aimPoint = aimPointBase;
-	    aimPoint.pan += offset.pan;  // Get pSeq[n] from flash.
-            if (aimPoint.pan < 0) aimPoint.pan += 24;
-            if (aimPoint.pan >= 24) aimPoint.pan -= 24;
-	    aimPoint.tilt += offset.tilt;
+            aimPoint.pan = addPan(aimPoint.pan, offset.pan);
+	    aimPoint.tilt = addTilt(aimPoint.tilt, offset.tilt);
 
-	    if (isValidPanTilt(&aimPoint)) {
-		queueShot(&aimPoint);
-	    }
+            sprintf(s, "queue shot %d, %d.", aimPoint.pan, aimPoint.tilt);
+            Serial.println(s);
+            queueShot(&aimPoint);
 	}
 }
 
