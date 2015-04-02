@@ -2314,6 +2314,7 @@ void lcdSetup(void)
 {
     // start & clear the display
     display.begin();
+    display.setRotation(0);
     
     // set text properties
     display.setTextSize(2);
