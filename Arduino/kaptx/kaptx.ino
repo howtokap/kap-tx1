@@ -2,6 +2,51 @@
 #include <Adafruit_SharpMem.h>
 #include <avr/pgmspace.h>
 
+// Pan and Tilt Servo tuning
+// The controller software represents angles with integers from 0 to 23.
+// 0 represents 0 degrees (pan to the right, tilt is horizontal)
+// 6 represents 90 degrees, pan downwind, tilt would be up (not allowed)
+// 12 represents 180 degrees, pan left, tilt horizontal but backwards (invalid)
+// 18 represents 270 degrees, pan upwind, tilt straight down.
+// [Note: valid tilt angles are +30 degrees to -135
+//        in this scheme, these correspond to 2, 1, 0, 23, 22, ..., 15.]
+//
+// To move the servos to the corresponding positions, these need to be converted
+// to PWM offsets in the range -1600 to 1600.  (Units are microseconds offset
+// from center position)
+// The formulas used are: 
+//     PAN PWM = <pan> * PWM_FACTOR_PAN + PWM_OFFSET_PAN.
+//     TILT PWM = <tilt> * PWM_FACTOR_TILT + PWM_OFFSET_TILT.
+//
+// The values provided below are correct for my rig but probably not yours.
+// You will need to change them.
+//
+// To find the correct values, try this procedure:
+// Step 1 : Determine offsets.
+//      Set PWM_FACTOR_PAN and PWM_FACTOR_TILT to 0.
+//      Run the software and see where the servos aim just after power on.
+//      Then, modify PWM_OFFSET_PAN and PWM_OFFSET_TILT and retry this.
+//      Keep adjusting these until the tilt is horizontal and the pan is to
+//           the right.
+//      (The offsets should stay in the range -1600 to 1600)
+//
+// Step 2 : Determine factors.
+//      Now set the PWM_FACTOR_PAN and PWM_FACTOR_TILT parameters to 100.
+//      Run the software, then adjust aim point on the display to be 
+//           pan straight away from you, tilt straight down.
+//      Is the rig pointing there?  No, adjust the factors and try again.
+//      If the rig moves the wrong way, the factor will need to change sign.
+//      
+// Once the factors are correct, the pan and tilt of the rig should 
+// match the controller's display for all angles.
+//      
+
+#define PWM_FACTOR_PAN (133)
+#define PWM_OFFSET_PAN (-800)
+#define PWM_FACTOR_TILT (265)
+#define PWM_OFFSET_TILT (893)
+#define PWM_MAX_OFFSET (1600)
+
 // for debug prints
 char s[40];
 
@@ -1886,13 +1931,12 @@ void shootUpdate()
   }
 }
 
-#ifdef TABLES
+#if 0   // obsolete after introduction of factor/offset params
 typedef struct {
     int user;
     int pwm;
 } UserToPwmEntry;
 
-        // TODO-DW : recover RAM!
 const UserToPwmEntry panTable[] = {  // -1600 ok, 
     {18, 1600},    // 18
     {17, 1466},
@@ -1938,7 +1982,7 @@ UserToPwmEntry tiltTable[] = {
 };
 #endif
 
-#ifdef TABLES
+#ifdef 0
 void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
 {
     bool foundMatch;
@@ -2004,11 +2048,7 @@ void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
     // Serial.println();
 }
 #else
-#define PWM_FACTOR_PAN (133)
-#define PWM_OFFSET_PAN (-800)
-#define PWM_FACTOR_TILT (265)
-#define PWM_OFFSET_TILT (893)
-#define PWM_MAX_OFFSET (1600)
+
 
 void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
 {
