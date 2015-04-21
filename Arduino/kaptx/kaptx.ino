@@ -1886,6 +1886,7 @@ void shootUpdate()
   }
 }
 
+#ifdef TABLES
 typedef struct {
     int user;
     int pwm;
@@ -1935,7 +1936,9 @@ UserToPwmEntry tiltTable[] = {
     { 1, 1159},   // +105
     { 2, 1424},   // +120
 };
+#endif
 
+#ifdef TABLES
 void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
 {
     bool foundMatch;
@@ -2000,6 +2003,56 @@ void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
     // Serial.print(model.servoGoalPos.tilt);
     // Serial.println();
 }
+#else
+#define PWM_FACTOR_PAN (133)
+#define PWM_OFFSET_PAN (-800)
+#define PWM_FACTOR_TILT (265)
+#define PWM_OFFSET_TILT (893)
+#define PWM_MAX_OFFSET (1600)
+
+void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
+{
+    bool foundMatch;
+    int panPwm = 0;
+    int tiltPwm = 0;
+    unsigned currDelta = 0;
+    unsigned newDelta = 0;
+    
+    // PAN
+    foundMatch = 0;
+    for (int cycle = -1; cycle <= 1; cycle++) {
+      int pwm = (user->pan + cycle*ANG_360) * PWM_FACTOR_PAN + PWM_OFFSET_PAN;
+      if ((pwm >= -PWM_MAX_OFFSET) && (pwm <= PWM_MAX_OFFSET)) {
+          // This is a valid pwm value.
+          if (!foundMatch) {
+              // It's the first match found, set current delta (distance needed to move)
+              panPwm = pwm;
+              currDelta = abs(pwm - model.servoPos.pan);
+          } else {
+              newDelta = abs(pwm - model.servoPos.pan);
+              if (newDelta < currDelta) {
+                  // the new one is better!
+                  panPwm = pwm;
+                  currDelta = newDelta;
+              } 
+          }
+      }
+    }
+    
+    // TILT
+    if (user->tilt < 12) {
+      tiltPwm = user->tilt * PWM_FACTOR_TILT + PWM_OFFSET_TILT;
+    }
+    else {
+      // treat 23, 22, ... as -1, -2, ...
+      tiltPwm = (user->tilt-ANG_360) * PWM_FACTOR_TILT + PWM_OFFSET_TILT;
+    }
+        
+    // Set servoPos components
+    pwm->pan = panPwm;
+    pwm->tilt = tiltPwm;
+}
+#endif
 
 boolean atGoalPos()
 {
