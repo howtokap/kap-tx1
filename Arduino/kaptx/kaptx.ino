@@ -1982,7 +1982,7 @@ UserToPwmEntry tiltTable[] = {
 };
 #endif
 
-#ifdef 0
+#if 0
 void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
 {
     bool foundMatch;
