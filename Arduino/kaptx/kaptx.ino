@@ -3,6 +3,7 @@
 #include <avr/pgmspace.h>
 
 #include "Ppm.h"
+#include "Joystick.h"
 
 // Pan and Tilt Servo tuning
 // The controller software represents angles with integers from 0 to 23.
@@ -51,6 +52,14 @@
 
 #define ARRAY_LEN(a) ((sizeof(a)) / (sizeof(a[0])))
 
+#define JS_BUTTON (9)
+#define JS_X (A0)
+#define JS_Y (A1)
+
+// Create components from libraries
+Ppm ppm;
+Joystick js(JS_X, JS_Y, JS_BUTTON);
+
 // for debug prints
 char s[40];
 
@@ -63,9 +72,6 @@ char s[40];
 #define CHAN_HOVER (4)
 #define CHAN_UNUSED2 (5)
 #define CHAN_UNUSED3 (6)
-
-// Create instance of PPM Generator
-Ppm ppm;
 
 // -----------------------------------------------------------------------------------------------
 
@@ -929,257 +935,10 @@ void writeLcd()
 #define ACCEL_PAN (1)
 #define ACCEL_TILT (1)
 
-// ------------------------------------------------------------------------------------------
-// PPM Generation
-
-
-// ------------------------------------------------------------------------------------------
-// Utility functions
-
-int iabs(int x)
-{
-    if (x < 0) {
-	return -x;
-    }
-    return x;
-}
 
 // --------------------------------------------------------------------------------
 // Joystick
 
-#define JS_BUTTON (9)
-#define JS_X (A0)
-#define JS_Y (A1)
-#define JS_DEBOUNCE (5)
-#define JS_MID (512)
-#define JS_MAX (1023)
-
-#define JS_NEUTRAL (350) // (450)
-#define JS_PLUS (400) // (500)
-#define JS_SLIDE_THRESH (100)
-
-struct Js_s {
-    int x;
-    int y;
-    int slideStart_x;
-    int slideStart_y;
-    bool but;
-    bool pressed;
-    unsigned int debounce;
-} js;
-
-void jsSetup()
-{
-    pinMode(JS_BUTTON, INPUT_PULLUP);
-    js.but = false;
-    js.pressed = false;
-    js.debounce = 0;
-}
-
-void jsPoll()
-{
-    bool oldbut;
-    js.x = JS_MID - analogRead(JS_X);
-    js.y = JS_MID - analogRead(JS_Y);
-    oldbut = js.but;
-    js.but = digitalRead(JS_BUTTON);
-    if (js.debounce > 0) js.debounce--;
-    if (!js.but & oldbut & (js.debounce == 0)) {
-	js.pressed = true;
-	js.debounce = JS_DEBOUNCE;
-    }
-}
-
-bool jsIsOut()
-{
-    long r2 = ((long)js.x*js.x) + ((long)js.y*js.y);
-    return r2 > (long)JS_PLUS*JS_PLUS;
-}
-
-bool jsIsCenter()
-{
-    long r2 = ((long)js.x*js.x) + ((long)js.y*js.y);
-    return (r2 < (long)JS_NEUTRAL*JS_NEUTRAL);
-    // return ((iabs(js.x) < JS_NEUTRAL) &&
-    //         (iabs(js.y) < JS_NEUTRAL));
-}
-
-void jsSetSlideStart()
-{
-    js.slideStart_x = js.x;
-    js.slideStart_y = js.y;
-}
-
-bool jsIsSlidingLR()
-{
-    int move = iabs(js.x - js.slideStart_x);
-    return (move > JS_SLIDE_THRESH);
-}
-
-bool jsIsSlidingUD()
-{
-    int move = iabs(js.y - js.slideStart_y);
-    return (move > JS_SLIDE_THRESH);
-}
-
-#define TAN_37_5 (0.76732699)
-#define TAN_33_75 (0.66817864)
-#define TAN_22_5 (0.41421356)
-#define TAN_11_25 (0.19891237)
-#define TAN_7_5 (0.13165250)
-
-// map joystick x, y into sectors 0-23, in standard orientation
-// (0 is due "east", 6 is north, 12 west, 18 south.)
-int jsGetIndex24()
-{
-    int index = 0;
-    int x = js.x;
-    int y = js.y;
-    bool fold_y = false;
-    bool fold_x = false;
-    bool fold_xy = false;
-    int tmp;
-
-    // fold x, y into 0, 1 positions
-    if (y < 0) {
-	fold_x = true;
-	y = -y;
-    }
-    if (x < 0) {
-	fold_y = true;
-	x = -x;
-    }
-    if (y > x) {
-	fold_xy = true;
-	tmp = x;
-	x = y;
-	y = tmp;
-    }
-
-    float t = (float)y/(float)x;
-    if (t > TAN_22_5) {
-	if (t > TAN_37_5) {
-	    index = 3;
-	}
-	else {
-	    index = 2;
-	}
-    }
-    else {
-	if (t > TAN_7_5) {
-	    index = 1;
-	}
-	else {
-	    index = 0;
-	}
-    }
-
-    // unfold as necessary
-    if (fold_xy) index = 6 - index;
-    if (fold_y) index = 12 - index;
-    if (fold_x) index = 24 - index;
-    if (index == 24) index = 0;
-
-    return index;
-}
-
-// map joystick x, y into sectors 0-15, in standard orientation
-// (0 is due "east", 4 is north, 8 west, 12 south.)
-int jsGetIndex16()
-{
-    int index = 0;
-    int x = js.x;
-    int y = js.y;
-    bool fold_y = false;
-    bool fold_x = false;
-    bool fold_xy = false;
-    int tmp;
-
-    // fold x, y into 0, 1 positions
-    if (y < 0) {
-	fold_x = true;
-	y = -y;
-    }
-    if (x < 0) {
-	fold_y = true;
-	x = -x;
-    }
-    if (y > x) {
-	fold_xy = true;
-	tmp = x;
-	x = y;
-	y = tmp;
-    }
-
-    float t = (float)y/(float)x;
-    if (t > TAN_22_5) {
-	index = 1;
-    }
-
-    // unfold as necessary
-    if (fold_xy) index = 3 - index;
-    if (fold_y) index = 7 - index;
-    if (fold_x) index = 15 - index;
-
-    return index;
-}
-
-// map joystick x, y into sectors 0-15, in standard orientation
-// (0 is due "east", 4 is north, 8 west, 12 south.)
-// difference between this and jsGetIndex16() is that these regions are centered on
-// the cardinal directions.  
-int jsGetIndex16_offs()
-{
-    int index = 0;
-    int x = js.x;
-    int y = js.y;
-    bool fold_y = false;
-    bool fold_x = false;
-    bool fold_xy = false;
-    int tmp;
-
-    // fold x, y into 0, 1 positions
-    if (y < 0) {
-	fold_x = true;
-	y = -y;
-    }
-    if (x < 0) {
-	fold_y = true;
-	x = -x;
-    }
-    if (y > x) {
-	fold_xy = true;
-	tmp = x;
-	x = y;
-	y = tmp;
-    }
-
-    float t = (float)y/(float)x;
-    if (t < TAN_22_5) {    
-      if (t < TAN_11_25) {
-	index = 0;
-      }
-      else {
-          index = 1;
-      }
-    }
-    else {
-      if (t < TAN_33_75) {
-        index = 1;
-      }
-      else {
-        index = 2;
-      }
-    }
-
-    // unfold as necessary
-    if (fold_xy) index = 4 - index;
-    if (fold_y) index = 8 - index;
-    if (fold_x) index = 16 - index;
-    if (index == 16) index = 0;
-
-    return index;
-}
 
 // -------------------------------------------------------------
 // KAP Tx Model
@@ -1363,14 +1122,14 @@ void adjTilt(int adj)
 
 void setJsPan()
 {
-    int index = jsGetIndex24();
+    int index = js.getIndex24();
 
     model.userPos.pan = index;
 }
 
 void setJsTilt()
 {
-    int index = jsGetIndex24();
+    int index = js.getIndex24();
     
     // Note: TILT_MAX is at index 2, TILT_MIN at 15.
     // This is because tilt indices use standard orientation.
@@ -1392,7 +1151,7 @@ void setJsMode()
 {
     int mode;
     
-    switch (jsGetIndex24()) {
+    switch (js.getIndex24()) {
       case 3:
         mode = MODE_SINGLE;
         break;
@@ -1436,7 +1195,7 @@ void setJsMode()
 
 void setJsHoVer()
 {
-    int i = jsGetIndex16();
+    int i = js.getIndex16();
 
     if ((i == 0) || (i == 7) || (i == 8) || (i == 15)) {
 	// set in horizontal mode
@@ -1450,7 +1209,7 @@ void setJsHoVer()
 
 void setJsAuto()
 {
-    int i = jsGetIndex16();
+    int i = js.getIndex16();
 
     if ((i == 3) || (i == 4)) {
 	// set in auto mode
@@ -1467,25 +1226,25 @@ void jsUpdate()
 {
     switch(model.jsState) {
 	case JS_IDLE:
-	    if (jsIsOut()) {
-		// int pos = jsGetIndex24();
-                int pos = jsGetIndex16_offs();
+	    if (js.isOut()) {
+		// int pos = js.getIndex24();
+                int pos = js.getIndex16_offs();
                 
                 switch (pos) {
 		    case 0:
 			// joystick is right
 			model.jsState = JS_RIGHT;
-			jsSetSlideStart();
+			js.setSlideStart();
 			break;
 		    case 2:
 			// joystick is NE, mode select
 			model.jsState = JS_SET_MODE;
-			jsSetSlideStart();
+			js.setSlideStart();
 			break;
 		    case 4:
 			// joystick is N, tilt 
 			model.jsState = JS_UP;
-			jsSetSlideStart();
+			js.setSlideStart();
 			break;
 		    case 6:
                         // joystick is NW, set Auto
@@ -1494,7 +1253,7 @@ void jsUpdate()
 		    case 8:
 			// joystick is left
 			model.jsState = JS_LEFT;
-			jsSetSlideStart();
+			js.setSlideStart();
 			break;
                     case 10:
                         // future home of config menu
@@ -1502,7 +1261,7 @@ void jsUpdate()
 		    case 12:
 			// joystick is down
 			model.jsState = JS_DOWN;
-			jsSetSlideStart();
+			js.setSlideStart();
 			break;
                     case 14:
                     	// joystick is SE, HoVer select
@@ -1515,51 +1274,51 @@ void jsUpdate()
 	    }
 	    break;
 	case JS_RIGHT:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		// was a bump right
 		adjPan(-1);
 		model.jsState = JS_IDLE;
 	    }
-	    if (jsIsSlidingUD()) {
+	    if (js.isSlidingUD()) {
 		model.jsState = JS_SET_PAN;
 		setJsPan();
 	    }
 	    break;
 	case JS_LEFT:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		// was a bump left
 		adjPan(1);
 		model.jsState = JS_IDLE;
 	    }
-	    if (jsIsSlidingUD()) {
+	    if (js.isSlidingUD()) {
 		model.jsState = JS_SET_PAN;
 		setJsPan();
 	    }
 	    break;
 	case JS_UP:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		// was a bump up
 		adjTilt(1);
 		model.jsState = JS_IDLE;
 	    }
-	    if (jsIsSlidingLR()) {
+	    if (js.isSlidingLR()) {
 		model.jsState = JS_SET_TILT;
 		setJsTilt();
 	    }
 	    break;
 	case JS_DOWN:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		// was a bump down
 		adjTilt(-1);
 		model.jsState = JS_IDLE;
 	    }
-	    if (jsIsSlidingLR()) {
+	    if (js.isSlidingLR()) {
 		model.jsState = JS_SET_TILT;
 		setJsTilt();
 	    }
 	    break;
 	case JS_SET_PAN:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		// JS Pan is done
 		model.jsState = JS_IDLE;
 	    }
@@ -1569,7 +1328,7 @@ void jsUpdate()
 	    }
 	    break;
 	case JS_SET_TILT:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		// JS Tilt is done
 		model.jsState = JS_IDLE;
 	    }
@@ -1579,7 +1338,7 @@ void jsUpdate()
 	    }
 	    break;
 	case JS_SET_MODE:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		// set new mode
                 model.shootMode = model.shootMode_disp;
 		// JS Mode is done
@@ -1591,7 +1350,7 @@ void jsUpdate()
 	    }
 	    break;
 	case JS_SET_HOVER:
-	    if (jsIsCenter()) {
+	    if (js.isCenter()) {
 		model.jsState = JS_IDLE;
 	    }
 	    else {
@@ -1600,7 +1359,7 @@ void jsUpdate()
 	    }
 	    break;
         case JS_SET_AUTO:
-            if (jsIsCenter()) {
+            if (js.isCenter()) {
                 model.jsState = JS_IDLE;
             }
             else {
@@ -1814,9 +1573,7 @@ void shootUpdate()
   }
   else {
     // trigger new sequence when operator presses joystick
-    if (js.pressed) {
-      // reset button press flag
-      js.pressed = false;
+    if (js.wasPressed()) {
       trigger = true;
     }
   }
@@ -2340,18 +2097,19 @@ void setup()
     Serial.println(F("Hello!"));
 
     ppm.init();
-    jsSetup();
+    js.setup();
+
     modelSetup();
     lcdSetup();
 }
 
 void loop()
 {
+    // Wait for PPM cycle to start (50Hz)
     ppm.sync();	
 
-    // Do 50 Hz stuff
     // read inputs
-    jsPoll();
+    js.poll();
 
     // Update model (state)
     modelUpdate();
@@ -2364,4 +2122,3 @@ void loop()
 
     // Do as fast as possible.
 }
-
