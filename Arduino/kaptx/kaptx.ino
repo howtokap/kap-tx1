@@ -2,6 +2,8 @@
 #include <Adafruit_SharpMem.h>
 #include <avr/pgmspace.h>
 
+#include "Ppm.h"
+
 // Pan and Tilt Servo tuning
 // The controller software represents angles with integers from 0 to 23.
 // 0 represents 0 degrees (pan to the right, tilt is horizontal)
@@ -47,8 +49,25 @@
 #define PWM_OFFSET_TILT (893)
 #define PWM_MAX_OFFSET (1600)
 
+#define ARRAY_LEN(a) ((sizeof(a)) / (sizeof(a[0])))
+
 // for debug prints
 char s[40];
+
+// ----------------------------------------------------------------------------------------------
+// PPM for KAP
+
+#define CHAN_PAN (1)
+#define CHAN_TILT (2)
+#define CHAN_SHUTTER (3)
+#define CHAN_HOVER (4)
+#define CHAN_UNUSED2 (5)
+#define CHAN_UNUSED3 (6)
+
+// Create instance of PPM Generator
+Ppm ppm;
+
+// -----------------------------------------------------------------------------------------------
 
 // Pins for LCD module.  (Any pins can be used.)
 #define LCD_SCK 4
@@ -907,112 +926,12 @@ void writeLcd()
     }
 }
 
-#define ARRAY_LEN(a) ((sizeof(a)) / (sizeof(a[0])))
-
 #define ACCEL_PAN (1)
 #define ACCEL_TILT (1)
-
-#define PPM_OUT (10)
-#define TX_PAIR (15)
-
-// Values for Timer1 Config registers
-#define WGM_15_1A (0x03)
-#define WGM_15_1B (0x03 << 3)
-#define COM1A_00 (0x00 << 6)
-#define COM1B_10 (0x02 << 4)
-#define COM1B_11 (0x03 << 4)
-#define COM1C_00 (0x00 << 2)
-#define CS1_DIV8 (0x02)
-#define TIMSK1_TOIE (0x01)
 
 // ------------------------------------------------------------------------------------------
 // PPM Generation
 
-#define PPM_CHANNELS (6)
-#define PPM_PHASES (PPM_CHANNELS+1)
-#define PPM_RESYNC_PHASE (0)
-#define PPM_PULSE_WIDTH (800)  // 400uS
-#define PPM_CENTER (3000)      // 1.5mS
-// #define PPM_FRAME_LEN (64000)  // 32mS -> ~30Hz
-#define PPM_FRAME_LEN (40000)  // 20ms -> 50Hz
-
-#define PPM_CHAN_PAN (1)
-#define PPM_CHAN_TILT (2)
-#define PPM_CHAN_SHUTTER (3)
-#define PPM_CHAN_HOVER (4)
-#define PPM_CHAN_UNUSED2 (5)
-#define PPM_CHAN_UNUSED3 (6)
-
-struct Ppm_s {
-    int phase; // which phase of PPM we are in, 0-6.  6 is long resync phase. 
-    int time[7 /* PPM_PHASES */];  // width of each PPM phase (1 = 0.5uS)
-    bool startCycle;
-} ppm;
-
-void ppmSetup()
-{  
-    pinMode(PPM_OUT, OUTPUT);
-    pinMode(TX_PAIR, INPUT);
-
-    // Init PPM phases
-    int remainder = PPM_FRAME_LEN;
-    for (ppm.phase = 1; ppm.phase <= PPM_CHANNELS; ppm.phase++) {
-	ppm.time[ppm.phase] = PPM_CENTER;  // 1.5mS
-	remainder -= ppm.time[ppm.phase];
-    }
-    ppm.time[PPM_RESYNC_PHASE] = remainder;
-    ppm.phase = 0;
-    ppm.startCycle = true;
-
-    // Disable Interrupts
-    cli();
-
-    // Init for PPM Generation
-
-    TCCR1A = WGM_15_1A | COM1A_00 | COM1B_11 | COM1C_00; // Fast PWM with OCR1A defining TOP
-    TCCR1B = WGM_15_1B | CS1_DIV8;                       // Prescaler : system clock / 8.
-    TCCR1C = 0;                                          // Not used
-    OCR1A = ppm.time[ppm.phase];                           // Length of current phase
-    OCR1B = PPM_PULSE_WIDTH;                             // Width of pulses
-    // OCR1C = 0;                                           // Not used
-    TIMSK1 = TIMSK1_TOIE;                                // interrupt on overflow (end of phase)
-
-    // Enable interrupts
-    sei();
-}
-
-void ppmWrite(int periods[7 /*PPM_PHASES*/])
-{
-    for (int i = 1; i <= PPM_CHANNELS; i++) {
-	ppm.time[i] = periods[i];
-    }
-}
-
-ISR(TIMER1_OVF_vect) 
-{
-    static unsigned remainder = PPM_FRAME_LEN;
-
-    // Handle Timer 1 overflow: Start of PPM interval
-    // Program total length of this phase in 0.5uS units.
-    ppm.phase += 1;
-    if (ppm.phase > PPM_CHANNELS) {
-	ppm.phase = 0;
-	ppm.startCycle = true;
-    }
-
-    // Remainder computation
-    if (ppm.phase == 0) {
-	// Store remainder
-	ppm.time[ppm.phase] = remainder;
-	remainder = PPM_FRAME_LEN;
-    }
-    else {
-	remainder -= ppm.time[ppm.phase];
-    }
-
-    // Program next interval time.
-    OCR1A = ppm.time[ppm.phase];
-}
 
 // ------------------------------------------------------------------------------------------
 // Utility functions
@@ -1310,10 +1229,10 @@ int jsGetIndex16_offs()
 #define SHUTTER_DOWN (2)
 #define SHUTTER_POST (3)
 
-#define SHUTTER_DOWN_POS (3600)  // 1.8ms
-#define SHUTTER_UP_POS (2400)    // 1.2ms
-#define HOVER_HOR_POS (3600)     // 1.8ms
-#define HOVER_VERT_POS (2400)    // 1.2ms
+#define SHUTTER_DOWN_POS (600)   // 1.8ms
+#define SHUTTER_UP_POS (-600)    // 1.2ms
+#define HOVER_HOR_POS (600)      // 1.8ms
+#define HOVER_VERT_POS (-600)    // 1.2ms
 
 #define SHOT_QUEUE_LEN (36)
 
@@ -2391,14 +2310,10 @@ void modelWrite()
     }
   
     // update PPM outputs
-    int periods[PPM_PHASES];
-    periods[PPM_CHAN_PAN] = PPM_CENTER + model.servoPos.pan;
-    periods[PPM_CHAN_TILT] = PPM_CENTER + model.servoPos.tilt;
-    periods[PPM_CHAN_SHUTTER] = model.shutterServo;
-    periods[PPM_CHAN_HOVER] = model.vertical ? HOVER_VERT_POS : HOVER_HOR_POS;
-    periods[PPM_CHAN_UNUSED2] = PPM_CENTER;
-    periods[PPM_CHAN_UNUSED3] = PPM_CENTER;
-    ppmWrite(periods);
+    ppm.write(CHAN_PAN, model.servoPos.pan);
+    ppm.write(CHAN_TILT, model.servoPos.tilt);
+    ppm.write(CHAN_SHUTTER, model.shutterServo);
+    ppm.write(CHAN_HOVER, model.vertical ? HOVER_VERT_POS : HOVER_HOR_POS);
 }
 
 // ---------------------------------------------------------------------
@@ -2424,31 +2339,29 @@ void setup()
     Serial.begin(9600);
     Serial.println(F("Hello!"));
 
+    ppm.init();
     jsSetup();
     modelSetup();
     lcdSetup();
-
-    ppmSetup();
 }
 
 void loop()
 {
-    if (ppm.startCycle) {
-	ppm.startCycle = false;
+    ppm.sync();	
 
-	// Do 50 Hz stuff
-	// read inputs
-	jsPoll();
+    // Do 50 Hz stuff
+    // read inputs
+    jsPoll();
 
-	// Update model (state)
-	modelUpdate();
+    // Update model (state)
+    modelUpdate();
 
-	// write outputs
-	modelWrite();
-	writeLcd();
+    // write outputs
+    modelWrite();
+    writeLcd();
 
-        // Serial.println("yo.");
-    }
+    // Serial.println("yo.");
 
     // Do as fast as possible.
 }
+
