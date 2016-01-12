@@ -1228,41 +1228,49 @@ void jsUpdate()
 	case JS_IDLE:
 	    if (js.isOut()) {
 		// int pos = js.getIndex24();
-                int pos = js.getIndex16_offs();
+                int pos = js.getIndex16();
                 
                 switch (pos) {
 		    case 0:
+		    case 15:
 			// joystick is right
 			model.jsState = JS_RIGHT;
 			js.setSlideStart();
 			break;
+		    case 1:
 		    case 2:
 			// joystick is NE, mode select
 			model.jsState = JS_SET_MODE;
 			js.setSlideStart();
 			break;
+		    case 3:
 		    case 4:
 			// joystick is N, tilt 
 			model.jsState = JS_UP;
 			js.setSlideStart();
 			break;
+		    case 5:
 		    case 6:
                         // joystick is NW, set Auto
                         model.jsState = JS_SET_AUTO;
 			break;
+		    case 7:
 		    case 8:
 			// joystick is left
 			model.jsState = JS_LEFT;
 			js.setSlideStart();
 			break;
+                    case 9:
                     case 10:
                         // future home of config menu
                         break;
+		    case 11:
 		    case 12:
 			// joystick is down
 			model.jsState = JS_DOWN;
 			js.setSlideStart();
 			break;
+                    case 13:
                     case 14:
                     	// joystick is SE, HoVer select
 			model.jsState = JS_SET_HOVER;
