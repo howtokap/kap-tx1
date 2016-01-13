@@ -66,7 +66,7 @@ Ppm::Ppm()
 {
 }
 
-void Ppm::init()
+void Ppm::setup()
 {
     pinMode(PPM_OUT, OUTPUT);
 

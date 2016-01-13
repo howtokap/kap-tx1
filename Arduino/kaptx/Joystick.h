@@ -13,12 +13,7 @@ class Joystick
   bool wasPressed();
   bool isOut();
   bool isCenter();
-
-  void setSlideStart();
-  bool isSlidingLR();
-  bool isSlidingUD();
-
-
+  
  private:
   int x_pin;
   int y_pin; 
@@ -26,8 +21,6 @@ class Joystick
 
   int x;
   int y;
-  int slideStart_x;
-  int slideStart_y;
   bool but;
   bool pressed;
   unsigned int debounce;

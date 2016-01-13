@@ -8,7 +8,7 @@ class Ppm
   // Constructor
   Ppm();
   
-  void init();
+  void setup();
 
   // Set PPM Channel to value.
   // A value of zero corresponds to the center of throw, pulse width of 1500uS

@@ -8,7 +8,6 @@
 
 #define JS_NEUTRAL (350) // (450)
 #define JS_PLUS (400) // (500)
-#define JS_SLIDE_THRESH (100)
 
 #define TAN_37_5 (0.76732699)
 #define TAN_33_75 (0.66817864)
@@ -241,22 +240,5 @@ bool Joystick::isCenter()
     return (r2 < (long)JS_NEUTRAL*JS_NEUTRAL);
 }
 
-void Joystick::setSlideStart()
-{
-    slideStart_x = x;
-    slideStart_y = y;
-}
-
-bool Joystick::isSlidingLR()
-{
-    int move = iabs(x - slideStart_x);
-    return (move > JS_SLIDE_THRESH);
-}
-
-bool Joystick::isSlidingUD()
-{
-    int move = iabs(y - slideStart_y);
-    return (move > JS_SLIDE_THRESH);
-}
 
 
