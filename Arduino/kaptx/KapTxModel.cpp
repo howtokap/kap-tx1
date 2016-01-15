@@ -45,18 +45,8 @@
 #define PWM_OFFSET_TILT (893)
 #define PWM_MAX_OFFSET (1600)
 
-// -------------------------------------------------------------
-// KAP Tx Model
-
 #define ACCEL_PAN (1)
 #define ACCEL_TILT (1)
-
-#define ANG_360 (24)
-#define TILT_MIN (15)
-#define TILT_MAX (2)
-#define TILT_MID_DEAD (8)
-#define PAN_MIN (0)
-#define PAN_MAX (23)
 
 // #define SHOOT_IDLE (0)
 // #define SHOOT_ACTIVE (1)
@@ -92,98 +82,339 @@
 
 #define ARRAY_LEN(a) ((sizeof(a)) / (sizeof(a[0])))
 
+// ----------------------------------------------------------------------------------
+// Forward declaration
+static void toPwm(PanTilt_t *pwm, const PanTilt_t *user);
+
+// -----------------------------------------------------------------------------------
+// KapTxModel Public methods
+
 KapTxModel::KapTxModel()
 {
-    // TODO-DW : Init fields
+    userPos.pan = 6;  // facing away from operator
+    userPos.tilt = 0;  // facing horizontal.
+
+    toPwm(&servoPos, &userPos);
+    servoVel.pan = 0;
+    servoVel.tilt = 0;
+
+    shutterServo = SHUTTER_UP_POS;
+
+    shootMode = MODE_SINGLE;
+    shotsQueued = 0;
+
+    hoVer = false;
+    autokap = false;
+
+    dispFlags = CHANGE_FLAGS;
 }
 
-void KapTxModel::setup()
+void KapTxModel::setPan(int index)
 {
-    model.userPos.pan = 6;  // facing away from operator
-    model.userPos.tilt = 0;  // facing horizontal.
-
-    model.shutterServo = SHUTTER_UP_POS;
-
-    model.shootMode = MODE_SINGLE;
-    model.shotsQueued = 0;
-
-    model.vertical = false;
-    model.autokap = false;
+    if (userPos.pan != index) {
+	userPos.pan = index;
+	dispFlags |= REFRESH_PAN_TILT;
+    }
 }
 
-unsigned char KapTxMode::getShutterLcdState()
+void KapTxModel::adjPan(int adj)
 {
-  unsigned char state = 0;
-  
-  if (model.shutterState == SHUTTER_DOWN) {
-    state = SHUTTER_STATE_TRIG;
-  }
-  else if ((model.shutterState == SHUTTER_POST) ||
-           (model.shutterState == SHUTTER_TRIGGERED)) {
-    state = SHUTTER_STATE_ACT;
-  }
-  else if (!model.autokap && 
-           (model.slewState == SLEW_STABLE)) {
-    state = SHUTTER_STATE_RDY;
-  }
-  else {
-    state = SHUTTER_STATE_NO;
-  }
-  
-  return state;
+    userPos.pan += adj;
+    if (userPos.pan > PAN_MAX) {
+	userPos.pan -= (PAN_MAX+1);
+    }
+    if (userPos.pan < PAN_MIN) {
+	userPos.pan += (PAN_MAX+1);
+    }
+    dispFlags |= REFRESH_PAN_TILT;
 }
 
-void KapTxModel::queueShot(struct PanTilt_s *aimPoint)
+void KapTxModel::setTilt(int index)
 {
-    struct PanTilt_s aimPointPwm;
+    int oldTilt = userPos.tilt;
+
+    // Note: TILT_MAX is at index 2, TILT_MIN at 15.
+    // This is because tilt indices use standard orientation.
+    if ((index <= TILT_MAX) || (index >= TILT_MIN)) {
+      // adopt this tilt
+      userPos.tilt = index;
+    }
+    else if (index < (TILT_MIN + TILT_MAX)/2) {
+        // set max tilt
+        userPos.tilt = TILT_MAX;
+    }
+    else {
+        // set min tilt
+        userPos.tilt = TILT_MIN;
+    }
+
+    if (userPos.tilt != oldTilt) {
+	dispFlags |= REFRESH_PAN_TILT;
+    }
+}
+
+// Note: this is intended to work with adjustments of +/- 1.
+void KapTxModel::adjTilt(int adj)
+{
+    if ((adj > 0) && (userPos.tilt == TILT_MAX)) return;  // no change
+    if ((adj < 0) && (userPos.tilt == TILT_MIN)) return;  // no change
+    userPos.tilt += adj;
+    if (userPos.tilt >= 24) userPos.tilt -= 24;
+    if (userPos.tilt < 0) userPos.tilt += 24;
+    dispFlags |= REFRESH_PAN_TILT;
+}
+
+void KapTxModel::getUserPos(PanTilt_t *aimPoint)
+{
+    *aimPoint = userPos;
+}
+
+bool KapTxModel::getHoVer() 
+{
+    return hoVer;
+}
+
+void KapTxModel::setHoVer(bool state)
+{
+    if (state != hoVer) {
+	dispFlags |= REFRESH_HOVER;
+    }
+    hoVer = state;
+}
+
+void KapTxModel::invHoVer(bool state)
+{
+    if (state) {
+	dispFlags |= INV_HOVER;
+    }
+    else {
+	dispFlags &= ~INV_HOVER;
+    }
+    dispFlags |= REFRESH_HOVER;
+}
+
+void KapTxModel::setAuto(bool state)
+{
+    if (state != autokap) {
+	dispFlags |= REFRESH_AUTO_COUNT;
+    }
+    autokap = state;
+    updateLcdShutterState();
+}
+
+bool KapTxModel::getAuto()
+{
+    return autokap;
+}
+
+void KapTxModel::invAuto(bool state)
+{
+    if (state) {
+	dispFlags |= INV_AUTO_COUNT;
+    }
+    else {
+	dispFlags &= ~INV_AUTO_COUNT;
+    }
+    dispFlags |= REFRESH_AUTO_COUNT;
+}
+
+void KapTxModel::setDispMode(Mode_t mode)
+{
+    if (mode != shootMode_disp) {
+	shootMode_disp = mode;
+	dispFlags |= REFRESH_SHOOT_MODE;
+    }
+}
+
+void KapTxModel::setModeToDispMode()
+{
+    shootMode = shootMode_disp;
+    dispFlags |= REFRESH_SHOOT_MODE;
+}
+
+void KapTxModel::invMode(bool state)
+{
+    if (state) {
+	dispFlags |= INV_SHOOT_MODE;
+    }
+    else {
+	dispFlags &= ~INV_SHOOT_MODE;
+    }
+    dispFlags |= REFRESH_SHOOT_MODE;
+}
+
+Mode_t KapTxModel::getShootMode()
+{
+    return shootMode;
+}
+
+Mode_t KapTxModel::getShootModeDisp()
+{
+    return shootMode_disp;
+}
+
+unsigned char KapTxModel::getDispFlags()
+{
+    unsigned char retval = dispFlags;
+
+    dispFlags &= ~CHANGE_FLAGS;
+
+    return retval;
+}
+
+unsigned char KapTxModel::getLcdShutterState()
+{
+    return lcdShutterState;
+}
+
+bool KapTxModel::atGoalPos()
+{
+    PanTilt_t goal;
+    getGoalPwm(&goal);
+
+    return ((goal.pan == servoPos.pan) &&
+	    (goal.tilt == servoPos.tilt) &&
+	    (servoVel.pan == 0) &&
+	    (servoVel.tilt == 0));
+}
+
+void KapTxModel::getGoalPwm(PanTilt_t *goal)
+{
+    if (shotsQueued) {
+	// slew target is the head of shot queue
+	*goal = shotQueue[0];
+    }
+    else {
+	// slew target is user position
+	toPwm(goal, &userPos);
+    }
+}
+
+void KapTxModel::queueShot(PanTilt_t *aimPoint)
+{
+    PanTilt_t aimPointPwm;
     toPwm(&aimPointPwm, aimPoint);
     
     queueShotPwm(&aimPointPwm);
 }
 
+unsigned KapTxModel::getShotsQueued()
+{
+    return shotsQueued;
+}
+
 void KapTxModel::dequeueShot()
 {
     for (int n = 0; n < SHOT_QUEUE_LEN-2; n++) {
-	model.shotQueue[n] = model.shotQueue[n+1];
+	shotQueue[n] = shotQueue[n+1];
     }
-    model.shotsQueued--;
+    shotsQueued--;
+    dispFlags |= REFRESH_AUTO_COUNT;
 }
 
+void KapTxModel::getServos(PanTilt_t *pos, PanTilt_t *vel)
+{
+    *pos = servoPos;
+    *vel = servoVel;
+}
+
+void KapTxModel::setServos(PanTilt_t *pos, PanTilt_t *vel)
+{
+    servoPos = *pos;
+    servoVel = *vel;
+}
+
+int KapTxModel::getPanPwm()
+{
+    return servoPos.pan;
+}
+
+int KapTxModel::getTiltPwm()
+{
+    return servoPos.tilt;
+}
+
+int KapTxModel::getShutterPwm()
+{
+    return shutterServo;
+}
+
+void KapTxModel::setShutterPwm(int pwm)
+{
+    shutterServo = pwm;
+}
+
+int KapTxModel::getHoVerPwm()
+{
+    return (hoVer ? HOVER_VERT_POS : HOVER_HOR_POS);
+}
+
+void KapTxModel::setShutterState(unsigned char state)
+{
+    unsigned char lcd_ss;
+
+    shutterState = state;
+    updateLcdShutterState();
+}
+
+void KapTxModel::setSlewStable(bool state)
+{
+    slewStable = state;
+    updateLcdShutterState();
+}
+
+bool KapTxModel::getSlewStable()
+{
+    return slewStable;
+}
 
 // --------------------------------------------------------------------------------
+// Utility methods
 
-void KapTxModel::queueShotPwm(struct PanTilt_s *aimPoint)
+void KapTxModel::updateLcdShutterState()
+{
+  unsigned char state = 0;
+
+  if (shutterState == SHUTTER_DOWN) {
+    state = SHUTTER_STATE_TRIG;
+  }
+  else if ((shutterState == SHUTTER_POST) ||
+           (shutterState == SHUTTER_TRIGGERED)) {
+    state = SHUTTER_STATE_ACT;
+  }
+  else if (!autokap && slewStable) {
+    state = SHUTTER_STATE_RDY;
+  }
+  else {
+    state = SHUTTER_STATE_NO;
+  }
+
+  if (state != lcdShutterState) {
+      lcdShutterState = state;
+      dispFlags |= REFRESH_SHUTTER;
+  }
+}
+
+void KapTxModel::queueShotPwm(PanTilt_t *aimPoint)
 {
     // bail out if queue is full
-    if (model.shotsQueued == SHOT_QUEUE_LEN) return;
+    if (shotsQueued == SHOT_QUEUE_LEN) return;
 
-    struct PanTilt_s *entry = model.shotQueue + model.shotsQueued;
+    PanTilt_t *entry = shotQueue + shotsQueued;
     *entry = *aimPoint;
-    model.shotsQueued++;
+    shotsQueued++;
+    dispFlags |= REFRESH_AUTO_COUNT;
 }
 
-void adjPan(int adj)
+static int iabs(int x)
 {
-    model.userPos.pan += adj;
-    if (model.userPos.pan > PAN_MAX) {
-	model.userPos.pan -= (PAN_MAX+1);
+    if (x < 0) {
+	return -x;
     }
-    if (model.userPos.pan < PAN_MIN) {
-	model.userPos.pan += (PAN_MAX+1);
-    }
+    return x;
 }
 
-// Note: this is intended to work with adjustments of +/- 1.
-void adjTilt(int adj)
-{
-    if ((adj > 0) && (model.userPos.tilt == TILT_MAX)) return;  // no change
-    if ((adj < 0) && (model.userPos.tilt == TILT_MIN)) return;  // no change
-    model.userPos.tilt += adj;
-    if (model.userPos.tilt >= 24) model.userPos.tilt -= 24;
-    if (model.userPos.tilt < 0) model.userPos.tilt += 24;
-}
-
-void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
+void KapTxModel::toPwm(PanTilt_t *pwm, const PanTilt_t *user)
 {
     bool foundMatch;
     int panPwm = 0;
@@ -200,9 +431,9 @@ void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
           if (!foundMatch) {
               // It's the first match found, set current delta (distance needed to move)
               panPwm = pwm;
-              currDelta = abs(pwm - model.servoPos.pan);
+              currDelta = iabs(pwm - servoPos.pan);
           } else {
-              newDelta = abs(pwm - model.servoPos.pan);
+              newDelta = iabs(pwm - servoPos.pan);
               if (newDelta < currDelta) {
                   // the new one is better!
                   panPwm = pwm;
@@ -226,30 +457,3 @@ void toPwm(struct PanTilt_s *pwm, const struct PanTilt_s *user)
     pwm->tilt = tiltPwm;
 }
 
-boolean KapTxModel::atGoalPos()
-{
-    struct PanTilt_s goal;
-    getGoalPwm(&goal);
-
-    return ((goal.pan == model.servoPos.pan) &&
-	    (goal.tilt == model.servoPos.tilt) &&
-	    (model.servoVel.pan == 0) &&
-	    (model.servoVel.tilt == 0));
-}
-
-void KapTxModel::getGoalPwm(struct PanTilt_s *goal)
-{
-    if (model.shotsQueued) {
-	// slew target is the head of shot queue
-	*goal = model.shotQueue[0];
-    }
-    else {
-	// slew target is user position
-	toPwm(goal, &model.userPos);
-    }
-}
-
-void KapTxModel::setDispShootMode()
-{
-    shootMode = shootMode_disp;
-}

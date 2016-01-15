@@ -1,5 +1,7 @@
 #include "KapTxController.h"
 
+#include <Arduino.h>
+
 // -------------------------------------------------------------------------------------
 // JsController
 
@@ -34,7 +36,7 @@ bool JsController::update()
     switch(state) {
 	case JS_IDLE:
 	    if (js->isOut()) {
-		// int pos = js.getIndex24();
+		// int pos = js->getIndex24();
                 int pos = js->getIndex16();
                 
                 switch (pos) {
@@ -48,6 +50,9 @@ bool JsController::update()
 		    case 2:
 			// joystick is NE, mode select
 			state = JS_SET_MODE;
+			model->setDispMode(MODE_SINGLE);
+			setJsMode();
+			model->invMode(true);
 			setSlideStart();
 			break;
 		    case 3:
@@ -60,6 +65,7 @@ bool JsController::update()
 		    case 6:
                         // joystick is NW, set Auto
                         state = JS_SET_AUTO;
+			model->invAuto(true);
 			break;
 		    case 7:
 		    case 8:
@@ -81,6 +87,7 @@ bool JsController::update()
                     case 14:
                     	// joystick is SE, HoVer select
 			state = JS_SET_HOVER;
+			model->invHoVer(true);
                         break;
 		    default:
 			// joystick is somewhere we don't care about
@@ -97,13 +104,13 @@ bool JsController::update()
 	    if (isSlidingUD()) {
 		// Start setting Pan from Joystick
 		state = JS_SET_PAN;
-		setJsPan()
+		setJsPan();
 	    }
 	    break;
 	case JS_LEFT:
 	    if (js->isCenter()) {
 		// was a bump left
-		adjPan(1);
+		model->adjPan(1);
 		state = JS_IDLE;
 	    }
 	    if (isSlidingUD()) {
@@ -115,19 +122,22 @@ bool JsController::update()
 	case JS_UP:
 	    if (js->isCenter()) {
 		// was a bump up
-		adjTilt(1);
+		model->adjTilt(1);
 		state = JS_IDLE;
 	    }
+#if 0
+// Counter-intuitive to engage tilt setting from up position.
 	    if (isSlidingLR()) {
 		// Start tracking tilt with joystick
 		state = JS_SET_TILT;
 		setJsTilt();
 	    }
+#endif
 	    break;
 	case JS_DOWN:
 	    if (js->isCenter()) {
 		// was a bump down
-		adjTilt(-1);
+		model->adjTilt(-1);
 		state = JS_IDLE;
 	    }
 	    if (isSlidingLR()) {
@@ -158,7 +168,8 @@ bool JsController::update()
 	case JS_SET_MODE:
 	    if (js->isCenter()) {
 		// set new mode
-		model->setDispShootMode();
+		model->setModeToDispMode();
+		model->invMode(false);
 		// JS Mode is done
 		state = JS_IDLE;
 	    }
@@ -170,15 +181,17 @@ bool JsController::update()
 	case JS_SET_HOVER:
 	    if (js->isCenter()) {
 		state = JS_IDLE;
+		model->invHoVer(false);
 	    }
 	    else {
 		// Track HOVER setting
-                setJsHover();
+                setJsHoVer();
 	    }
 	    break;
         case JS_SET_AUTO:
             if (js->isCenter()) {
                 state = JS_IDLE;
+		model->invAuto(false);
             }
             else {
                 // Track AUTO setting
@@ -202,11 +215,11 @@ void JsController::setJsManAuto()
 
     if ((i == 3) || (i == 4)) {
 	// set in auto mode
-	model->autokap = true;
+	model->setAuto(true);
     }
     if ((i == 7) || (i == 8)) {
 	// turn off auto mode
-	model->autokap = false;
+	model->setAuto(false);
     }
 }
 
@@ -216,46 +229,34 @@ void JsController::setJsHoVer()
 
     if ((i == 0) || (i == 7) || (i == 8) || (i == 15)) {
 	// set in horizontal mode
-	model->vertical = false;
+	model->setHoVer(false);
     }
     if ((i == 3) || (i == 4) || (i == 11) || (i == 12)) {
 	// set in vertical mode
-	model->vertical = true;
+	model->setHoVer(true);
     }
 }
 
 void JsController::setJsPan()
 {
-    int index = js.getIndex24();
+    int index = js->getIndex24();
 
-    model.userPos.pan = index;
+    /// model->userPos.pan = index;
+    model->setPan(index);
 }
 
 void JsController::setJsTilt()
 {
-    int index = js.getIndex24();
+    int index = js->getIndex24();
     
-    // Note: TILT_MAX is at index 2, TILT_MIN at 15.
-    // This is because tilt indices use standard orientation.
-    if ((index <= TILT_MAX) || (index >= TILT_MIN)) {
-      // adopt this tilt
-      model.userPos.tilt = index;
-    }
-    else if (index < (TILT_MIN + TILT_MAX)/2) {
-        // set max tilt
-        model.userPos.tilt = TILT_MAX;
-    }
-    else {
-        // set min tilt
-        model.userPos.tilt = TILT_MIN;
-    }
+    model->setTilt(index);
 }
 
 void JsController::setJsMode()
 {
-    int mode;
+    Mode_t mode;
     
-    switch (js.getIndex24()) {
+    switch (js->getIndex24()) {
       case 3:
         mode = MODE_SINGLE;
         break;
@@ -286,11 +287,11 @@ void JsController::setJsMode()
       case 18:
       case 19:
         // show current shoot mode
-        mode = model->shootMode;
+        mode = model->getShootMode();
         break;
       default:
         // otherwise, don't change shootMode_disp
-        mode = model->shootMode_disp;
+        mode = model->getShootModeDisp();
     }
     
     // set display mode
@@ -299,19 +300,27 @@ void JsController::setJsMode()
 
 void JsController::setSlideStart()
 {
-    slideStart_x = x;
-    slideStart_y = y;
+    slideStart_x = js->x;
+    slideStart_y = js->y;
+}
+
+static int iabs(int x)
+{
+    if (x < 0) {
+	return -x;
+    }
+    return x;
 }
 
 bool JsController::isSlidingLR()
 {
-    int move = iabs(x - slideStart_x);
+    int move = iabs(js->x - slideStart_x);
     return (move > JS_SLIDE_THRESH);
 }
 
 bool JsController::isSlidingUD()
 {
-    int move = iabs(y - slideStart_y);
+    int move = iabs(js->y - slideStart_y);
     return (move > JS_SLIDE_THRESH);
 }
 
@@ -321,35 +330,28 @@ bool JsController::isSlidingUD()
 ShootController::ShootController(KapTxModel *_model)
 {
     model = _model;
-    js = _js;
 }
-
-void ShootController::setup()
-{
-}
-
-
 
 void ShootController::update(bool jsPressed)
 {
   bool trigger = false;
   
-  if (model->autokap) {
+  if (model->getAuto()) {
     // trigger new sequence when prior one finishes
-    if (model->shotsQueued == 0) {
+    if (model->getShotsQueued() == 0) {
       trigger = true;
     }
   }
   else {
     // trigger new sequence when operator presses joystick
-    if (jsPressed()) {
+    if (jsPressed) {
       trigger = true;
     }
   }
 
   if (trigger) {
     // perform shot processing based on mode
-    switch (model->shootMode) {
+    switch (model->getShootMode()) {
 	case MODE_SINGLE:
 	    shootSingle();
 	    break;
@@ -370,7 +372,8 @@ void ShootController::update(bool jsPressed)
 	    break;
 	default:
 	    // reset to single shoot mode
-            model->shootMode = MODE_SINGLE;
+            model->setDispMode(MODE_SINGLE);
+            model->setModeToDispMode();
 	    break;
     }
   }
@@ -378,19 +381,10 @@ void ShootController::update(bool jsPressed)
 
 void ShootController::shootSingle()
 {
-  // queue a shot based on current pan/tilt
-  queueShot(&model.userPos);
-}
-
-boolean ShootController::isValidPanTilt(struct PanTilt_s *pt)
-{
-    // comparison looks wrong but it's actually right.
-    // TILT_MAX = 2, TILT_MIN = 15.  Unreachable zone is 3-14.
-    if ((pt->tilt > TILT_MAX) && (pt->tilt < TILT_MIN)) {
-	return false;
-    }
-
-    return true;
+    struct PanTilt_s aimPoint;
+    // queue a shot based on current pan/tilt
+    model->getUserPos(&aimPoint);
+    model->queueShot(&aimPoint);
 }
 
 #define SEQ_LEN 7
@@ -414,7 +408,7 @@ void ShootController::shootCluster()
         const struct PanTilt_s *pSeq;
         
         // base aim point is user's aim point initially
-        aimPointBase = model.userPos;
+	model->getUserPos(&aimPointBase);
         
         // get tilt off the rails so cluster doesn't collapse on itself.
         if (aimPointBase.tilt == TILT_MAX) aimPointBase.tilt -= 1;
@@ -451,21 +445,23 @@ void ShootController::shootCluster()
 
             // sprintf(s, "queue shot %d, %d.", aimPoint.pan, aimPoint.tilt);
             // Serial.println(s);
-            queueShot(&aimPoint);
+            model->queueShot(&aimPoint);
 	}
 }
 
 void ShootController::shootVpan()
 {
+  struct PanTilt_s aimPointBase;
   struct PanTilt_s aimPoint;
   int tilt;
   
     // queue up the userPos position for first shot.
-    queueShot(&model.userPos);
+  model->getUserPos(&aimPointBase);
+  model->queueShot(&aimPointBase);
     
     // Try to shoot +/- 45 degrees of tilt around user's tilt
     // Compute highest tilt
-    tilt = model.userPos.tilt;
+  tilt = aimPointBase.tilt;
     
     // adjust down by 45 degrees (constrained by range of motion)
     tilt -= 3;  
@@ -479,35 +475,40 @@ void ShootController::shootVpan()
    
     // Take shots spanning 90 degrees
     for (int n = 0; n < 7; n++) {
-      aimPoint.pan = model.userPos.pan;
+	aimPoint.pan = aimPointBase.pan;
       aimPoint.tilt = tilt - n;
       if (aimPoint.tilt < 0) aimPoint.tilt += 24;
-      queueShot(&aimPoint);
+      model->queueShot(&aimPoint);
     }
 }
 
 void ShootController::shootHpan()
 {
+    struct PanTilt_s aimPointBase;
   struct PanTilt_s aimPoint;
-  int tilt = model.userPos.tilt;
-  int tilt2 = ((tilt <= 2) || (tilt > 18)) ? tilt-2 : tilt + 2;
+  int tilt;
+  int tilt2;
+
+  model->getUserPos(&aimPointBase);
+  tilt = aimPointBase.tilt;
+  tilt2 = ((tilt <= 2) || (tilt > 18)) ? tilt-2 : tilt + 2;
   
   if (tilt2 < 0) tilt2 += 24;
   
     // queue up the userPos position for first shot.
-    aimPoint = model.userPos;
-    queueShot(&aimPoint);
+  aimPoint = aimPointBase;
+    model->queueShot(&aimPoint);
        
     // Take shots 45 degrees left to 45 right, two rows
     for (int n = -3; n <= 3; n += 2) {
-      aimPoint.pan = model.userPos.pan + n;
+	aimPoint.pan = aimPointBase.pan + n; 
       if (aimPoint.pan < 0) aimPoint.pan += 24;
       if (aimPoint.pan >= 24) aimPoint.pan -= 24;
       aimPoint.tilt = tilt;
-      queueShot(&aimPoint);
+      model->queueShot(&aimPoint);
       
       aimPoint.tilt = tilt2;
-      queueShot(&aimPoint);
+      model->queueShot(&aimPoint);
     }
 }
 
@@ -524,7 +525,7 @@ void ShootController::shootQuad()
   struct PanTilt_s reference;
   struct PanTilt_s aimPoint;
   
-    reference = model.userPos;
+  model->getUserPos(&reference);
     reference.tilt = 0;
     for (int n = 0; n < sizeof(quadSeq)/sizeof(quadSeq[0]); n++) {
       PanTilt_s offset;
@@ -532,7 +533,7 @@ void ShootController::shootQuad()
       aimPoint = reference;
       aimPoint.pan = addPan(aimPoint.pan, offset.pan);
       aimPoint.tilt = addTilt(aimPoint.tilt, offset.tilt);
-      queueShot(&aimPoint);
+      model->queueShot(&aimPoint);
     }
 }
 
@@ -549,16 +550,16 @@ void ShootController::shoot360()
   struct PanTilt_s aimPoint;
   
     for (int i = 0; i < 4; i++) {   // shoot 4 quadrants
-      reference = model.userPos;
+	model->getUserPos(&reference);
       reference.tilt = 0;
-      reference.pan = addPan(model.userPos.pan, i*6);
+      reference.pan = addPan(reference.pan, i*6);
       for (int n = 0; n < sizeof(seq360)/sizeof(seq360[0]); n++) {
         PanTilt_s offset;
         memcpy_P(&offset, seq360+n, sizeof(PanTilt_s));
         aimPoint = reference;
         aimPoint.pan = addPan(aimPoint.pan, offset.pan);
         aimPoint.tilt = addTilt(aimPoint.tilt, offset.tilt);
-        queueShot(&aimPoint);
+        model->queueShot(&aimPoint);
       }
     }
 }
@@ -587,21 +588,30 @@ int ShootController::addTilt(int tilt, int n)
 // -------------------------------------------------------------------------------------
 // SlewController
 
+#define SLEW_STABLE (0)
+#define SLEW_MOVING (1)
+#define SLEW_STABILIZING (2)
+
+#define TIME_STABILIZING (10)
+
+#define ACCEL_PAN (1)
+#define ACCEL_TILT (1)
+
 SlewController::SlewController(KapTxModel *_model)
 {
     model = _model;
-    state = SLEW_STABLE:
+    state = SLEW_STABLE;
     timer = 0;
 }
 
-void SlewController::update()
+bool SlewController::update(bool shutterIdle)
 {
     // execute slew state machine to bring servos to target position.
     switch (state) {
 	case SLEW_STABLE:
 	    // Serial.println("slew state STABLE");
-	    if ((model.shutterState == SHUTTER_IDLE) &&
-		(!atGoalPos())) {
+	    if (shutterIdle &&
+		(!model->atGoalPos())) {
 		// start moving
 		state = SLEW_MOVING;
 		moveServos();
@@ -609,7 +619,7 @@ void SlewController::update()
 	    break;
 	case SLEW_MOVING:
 	    // Serial.println("slew state MOVING");
-	    if (!atGoalPos()) {
+	    if (!model->atGoalPos()) {
 		moveServos();
 	    } else {
 		timer = TIME_STABILIZING;
@@ -618,7 +628,7 @@ void SlewController::update()
 	    break;
 	case SLEW_STABILIZING:
 	    // Serial.println("slew state STABILIZING");
-	    if (!atGoalPos()) {
+	    if (!model->atGoalPos()) {
 		timer = 0;
 		state = SLEW_MOVING;
 		moveServos();
@@ -637,6 +647,8 @@ void SlewController::update()
 	    state = SLEW_STABLE;
 	    break;
     }
+
+    model->setSlewStable(state == SLEW_STABLE);
 }
 
 void SlewController::slew(int *x, int *v, int target, int a)
@@ -644,7 +656,7 @@ void SlewController::slew(int *x, int *v, int target, int a)
     // compute position error
     int deltax = target - *x;
     int norm_v = *v;
-    boolean reverse = false;
+    bool reverse = false;
     if (deltax < 0) {
 	reverse = true;
 	deltax = -deltax;
@@ -688,39 +700,56 @@ void SlewController::moveServos()
 {
     // update servo target position from userPos
     struct PanTilt_s goal;
+    struct PanTilt_s pos;
+    struct PanTilt_s vel;
 
     model->getGoalPwm(&goal);
 
     // TODO-DW : Keep pos, vel in controller, set pos in model as output
     // TODO-DW : Incorporate HoVer servo into slew controller
 
-    slew(&model.servoPos.pan, &model.servoVel.pan, goal.pan, ACCEL_PAN);
-    slew(&model.servoPos.tilt, &model.servoVel.tilt, goal.tilt, ACCEL_TILT);
+    model->getServos(&pos, &vel);
 
+    slew(&pos.pan, &vel.pan, goal.pan, ACCEL_PAN);
+    slew(&pos.tilt, &vel.tilt, goal.tilt, ACCEL_TILT);
+    
+    model->setServos(&pos, &vel);
 }
 
 // -------------------------------------------------------------------------------------
 // ShutterController
 
-ShutterController::ShutterController()
+#define SHUTTER_DOWN_POS (3600)  // 1.8ms
+#define SHUTTER_UP_POS (2400)    // 1.2ms
+#define HOVER_HOR_POS (3600)     // 1.8ms
+#define HOVER_VERT_POS (2400)    // 1.2ms
+
+#define TIME_SHUTTER_DOWN (5)
+#define TIME_SHUTTER_POST (35)
+
+ShutterController::ShutterController(KapTxModel *_model)
 {
+  model = _model;
+  state = SHUTTER_IDLE;
+
+  model->setShutterState(state);
 }
 
-void ShutterController::update(bool slewStable)
+void ShutterController::update()
 {
     switch (state) {
 	case SHUTTER_IDLE:
 	    // Serial.println("shutter state IDLE");
-	    if (model->shotsQueued != 0) {
+	    if (model->getShotsQueued() != 0) {
 		// transition to TRIGGERED state
 		state = SHUTTER_TRIGGERED;
 	    }
 	    break;
 	case SHUTTER_TRIGGERED:
 	    // Serial.println("shutter state TRIGGERED");
-	    if (slewStable) {
+	    if (model->getSlewStable()) {
 		// trip shutter and transition to DOWN state
-		model.shutterServo = SHUTTER_DOWN_POS;
+		model->setShutterPwm(SHUTTER_DOWN_POS);
 		timer = TIME_SHUTTER_DOWN;
 		state = SHUTTER_DOWN;
 		// Serial.println("shutter state DOWN");
@@ -732,7 +761,7 @@ void ShutterController::update(bool slewStable)
 		timer--;
 	    } else {
 		// shutter has been down long enough
-		model.shutterServo = SHUTTER_UP_POS;
+		model->setShutterPwm(SHUTTER_UP_POS);
 		timer = TIME_SHUTTER_POST;
 		state = SHUTTER_POST;
 		// Serial.println("shutter state POST");
@@ -754,37 +783,37 @@ void ShutterController::update(bool slewStable)
 	    state = SHUTTER_IDLE;
 	    break;
     }
+
+    model->setShutterState(state);
+}
+
+bool ShutterController::isIdle()
+{
+  return state == SHUTTER_IDLE;
 }
 
 // -------------------------------------------------------------------------------------
 // KapTxController
 
-KapTxController::KapTxController(Joystick *js, KapTxModel *model) :
-    jsc(js, model),
-    shoot(model),
-    slew(model),
-    shutter(model)
+KapTxController::KapTxController(Joystick *_js, KapTxModel *_model) :
+    jsc(_js, _model),
+    shoot(_model),
+    slew(_model),
+    shutter(_model)
 {
-    // TODO
-}
-
-void KapTxController::setup()
-{
-    // Setup each controller component
-    jsc.setup();
-    shoot.setup();
-    slew.setup();
-    shutter.setup();
+    js = _js;
+    model = _model;
 }
 
 // Controller actions
 void KapTxController::update()
 {
     bool slewStable;
+    bool jsPressed;
 
     // Update each controller component
     jsPressed = jsc.update();  // TODO-DW : Better way to communicate joystick presses to shoot controller?
     shoot.update(jsPressed);
-    slewStable = slew.update();
-    shutter.update(slewStable);
+    slew.update(shutter.isIdle());
+    shutter.update();
 }

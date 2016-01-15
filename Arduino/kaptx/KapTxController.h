@@ -1,14 +1,19 @@
+#pragma once 
+
 #include "Joystick.h"
 #include "KapTxModel.h"
+
+
 
 class JsController
 {
   public:
-    JsController(Joystick *_js);
+    JsController(Joystick *_js, KapTxModel *_model);
 
   private:
     // Instance data
     Joystick *js;
+    KapTxModel *model;
 
     // Joystick gesture state machine state
     unsigned char state;
@@ -18,12 +23,17 @@ class JsController
     int slideStart_y;
 
   public:
-    void update(Joystick *js, KapTxModel *model);
+    bool update();
 
   private:
     void setSlideStart();
     bool isSlidingLR();
     bool isSlidingUD();
+    void setJsPan();
+    void setJsTilt();
+    void setJsMode();
+    void setJsHoVer();
+    void setJsManAuto();
 };
 
 class ShootController
@@ -37,18 +47,20 @@ class ShootController
 
   public:
     // Public API
-    void setup();
-    void update();
+    void update(bool jsPressed);
 
   private:
     // Utility methods
     void shootSingle();
-    boolean isValidPanTilt(struct PanTilt_s *pt);
+    bool isValidPanTilt(struct PanTilt_s *pt);
     void shootCluster();
     void shootVpan();
     void shootHpan();
     void shootQuad();
     void shoot360();
+    int addPan(int pan, int n);
+    int addTilt(int tilt, int n);
+
 };
 
 class SlewController
@@ -64,8 +76,7 @@ class SlewController
 
   public:
     // Public API
-    void setup();
-    void update();
+    bool update(bool shutterIdle);
 
   private:
     // Utility methods
@@ -75,10 +86,16 @@ class SlewController
     // TODO-DW
 };
 
+// Shutter controller states
+#define SHUTTER_IDLE (0)
+#define SHUTTER_TRIGGERED (1)
+#define SHUTTER_DOWN (2)
+#define SHUTTER_POST (3)
+
 class ShutterController
 {
   public:
-    ShutterController();
+    ShutterController(KapTxModel *_model);
 
   private:
     KapTxModel *model;
@@ -87,16 +104,15 @@ class ShutterController
 
   public:
     // Public API
-    void setup();
     void update();
-
+    bool isIdle();
     // TODO-DW
 };
 
 class KapTxController
 {
   public:
-    KapTxController();
+    KapTxController(Joystick *js, KapTxModel *model);
 
   private:
     // Instance data
@@ -110,8 +126,7 @@ class KapTxController
 
   public:
     // Public methods
-    void setup();
-    void update(Joystick *js, KapTxModel *model);
+    void update();
 
   private:
     // Utility methods

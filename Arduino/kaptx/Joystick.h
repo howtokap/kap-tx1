@@ -1,3 +1,5 @@
+#pragma once
+
 class Joystick
 {
  public:
@@ -19,6 +21,7 @@ class Joystick
   int y_pin; 
   int but_pin;
 
+ public:
   int x;
   int y;
   bool but;

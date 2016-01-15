@@ -15,17 +15,6 @@
 #define TAN_11_25 (0.19891237)
 #define TAN_7_5 (0.13165250)
 
-// ------------------------------------------------------------------------------------------
-// Utility functions
-
-int iabs(int x)
-{
-    if (x < 0) {
-	return -x;
-    }
-    return x;
-}
-
 // Public API
 Joystick::Joystick(int xPin, int yPin, int butPin)
 {

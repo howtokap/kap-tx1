@@ -7,23 +7,19 @@
 #include "Joystick.h"
 #include "KapTxLcd.h"
 #include "KapTxModel.h"
+#include "KapTxController.h"
 
 // Pins for Joystick.
 #define JS_BUTTON (9)
 #define JS_X (A0)
 #define JS_Y (A1)
 
-// Pins for LCD module.  (Any pins can be used.)
-#define LCD_SCK 4
-#define LCD_MOSI 5
-#define LCD_SS 6
-
 // Create components from libraries
 Ppm ppm;
 Joystick js(JS_X, JS_Y, JS_BUTTON);
 KapTxModel model;                                 // model
-KapTxLcd view(LCD_SCK, LCD_MOSI, LCD_SS);         // view 
-KapTxController controller();                     // controller
+KapTxLcd view(&model);         // view 
+KapTxController controller(&js, &model);                     // controller
 
 // ----------------------------------------------------------------------------------------------
 // PPM for KAP
@@ -44,10 +40,7 @@ void setup()
 
     js.setup();
     ppm.setup();
-
-    model.setup();
     view.setup();
-    controller.setup();
 }
 
 void loop()
@@ -59,17 +52,15 @@ void loop()
     js.poll();
 
     // Let controller do it's thing.
-    controller.update(&js, &model);
-
-    // Update model
-    model.update();
+    controller.update();
 
     // update PPM outputs
-    ppm.write(CHAN_PAN, model.servoPos.pan);
-    ppm.write(CHAN_TILT, model.servoPos.tilt);
-    ppm.write(CHAN_SHUTTER, model.shutterServo);
-    ppm.write(CHAN_HOVER, model.vertical ? HOVER_VERT_POS : HOVER_HOR_POS);
+    struct PanTilt_s pos;
+    ppm.write(CHAN_PAN, model.getPanPwm());
+    ppm.write(CHAN_TILT, model.getTiltPwm());
+    ppm.write(CHAN_SHUTTER, model.getShutterPwm());
+    ppm.write(CHAN_HOVER, model.getHoVerPwm());
 
     // update LCD
-    view.update(&model);
+    view.update();
 }

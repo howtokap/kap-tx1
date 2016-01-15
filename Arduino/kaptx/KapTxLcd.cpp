@@ -1,90 +1,13 @@
-#include "KapLcd.h"
+#include "KapTxLcd.h"
 
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
+#include <Adafruit_SharpMem.h>
 
 #include "KapTxModel.h"
 
-// Constructor
-KapTxLcd::KapTxLcd(int sckPin, int mosiPin, int ssPin) :
-    display(sckPin, mosiPin, ssPin)
-{
-    flags = 
-	REFRESH_PAN_TILT | 
-	REFRESH_AUTO_COUNT | 
-	REFRESH_SHOOT_MODE | 
-	REFRESH_SHUTTER | 
-	REFRESH_HOVER;
-    pan = 0;
-    tilt = 0;
-    shots = 0;
-    shootMode = 0;
-    shutterState = 0;
-    sinceRefresh = 0;
-    vertical = false;
-    autokap = false;
-    priorityRefresh = false;
-}
+#define REFRESH_INTERVAL 25
 
-// Set up
-void KapTxLcd::setup()
-{
-    // start & clear the display
-    display.begin();
-    display.setRotation(0);
-    
-    // set text properties
-    display.setTextSize(2);
-    display.clearDisplay();
-
-    // Display stuff that is only updated once.
-    showBitmap(BM_CIRCLE, BLACK);
-
-    display.refresh();
-}
-
-// Update from model
-void KapTxLcd::update(KapTxModel *model)
-{
-    // Determine what has changed, to trigger the appropriate redrawing.
-    // Update pan if changed
-    if (pan != model->userPos.pan) {
-	flags |= REFRESH_PAN_TILT;
-	pan = model->userPos.pan;
-    }
-
-    // Update tilt if changed
-    if (tilt != model->userPos.tilt) {
-	flags |= REFRESH_PAN_TILT;
-	tilt = model->userPos.tilt;
-    }
-
-    // Update HoVer indicator if inverse state changed or if value changed
-    bool showingInv = (flags & INV_HOVER) == INV_HOVER;
-    bool showInv = (model->jsState == JS_SET_HOVER);
-    if (showInv && !showingInv) {
-	// Put HoVer in inverse video
-	flags |= REFRESH_HOVER;
-	flags |= INV_HOVER
-    }
-    else if (!showInv && showingInv) {
-	// Put HoVer in non-inverse video
-	flags |= REFRESH_HOVER;
-	flags &= ~INV_HOVER
-    }
-    else if (vertical != model->vertical) {
-	// Update HoVer value
-	flags |= REFRESH_HOVER;
-    }
-    vertical = model->vertical;
-
-    // TODO-DW : Add logic to invert HOVER indicator
-    shootMode_disp shootMode_disp REFRESH_SHOOT_MODE;
-    
-}
-
-// ------------------------------------------------------------------------------
-// Bitmaps
 
 #define BLACK 0
 #define WHITE 1
@@ -116,6 +39,70 @@ enum {
     BM_ARC_22,
     BM_ARC_23,
 };
+
+// Pins for LCD module.  (Any pins can be used.)
+#define LCD_SCK 4
+#define LCD_MOSI 5
+#define LCD_SS 6
+
+Adafruit_SharpMem display(LCD_SCK, LCD_MOSI, LCD_SS);
+
+// Constructor
+KapTxLcd::KapTxLcd(KapTxModel *_model) :
+  model(_model)
+{
+    sinceRefresh = 0;
+    refreshNeeded = false;
+}
+
+// Set up
+void KapTxLcd::setup()
+{
+    // start & clear the display
+    display.begin();
+    display.setRotation(0);
+    
+    // set text properties
+    display.setTextSize(2);
+    display.clearDisplay();
+
+    // Display stuff that is only updated once.
+    showBitmap(BM_CIRCLE, BLACK);
+
+    display.refresh();
+}
+
+void KapTxLcd::update() 
+{
+    unsigned char flags = model->getDispFlags();
+
+    sinceRefresh++;
+    if (sinceRefresh > REFRESH_INTERVAL) {
+	// a refresh should be performed soon
+	refreshNeeded = true;
+    }
+
+    // The following if..else sequence will draw updates if needed
+    // or it will refresh the display if needed but not both.
+
+    if (flags & CHANGE_FLAGS) {
+	// TODO-DW : draw updates on screen buffer
+	drawUpdates(flags);
+	
+	// A refresh will be needed on the next cycle
+	refreshNeeded = true;
+    }
+    else if (refreshNeeded) {
+	// TODO-DW : Do a refresh now
+	display.refresh();
+	sinceRefresh = 0;
+	refreshNeeded = false;
+    }
+}
+
+// ------------------------------------------------------------------------------
+// Bitmaps
+
 
 struct xbm_s {
     uint16_t x;
@@ -553,4 +540,295 @@ void KapTxLcd::showBitmap(unsigned char bitmapId, unsigned char color)
 	    break;
     }
 }
+
+void KapTxLcd::showShutter(unsigned char state)
+{
+    unsigned char bitmapId;
+
+    // Serial.println(m);
+    switch (state) {
+	case SHUTTER_STATE_NO:
+	    bitmapId = BM_SHOOT_NO;
+	    break;
+	case SHUTTER_STATE_RDY:
+	    bitmapId = BM_SHOOT_RDY;
+	    break;
+	case SHUTTER_STATE_ACT:
+	    bitmapId = BM_SHOOT_ACT;
+	    break;
+	case SHUTTER_STATE_TRIG:
+	    bitmapId = BM_SHOOT_TRIG;
+	    break;
+	default:
+	    bitmapId = BM_NONE;
+	    break;
+    }
+
+    // erase old bitmap
+    display.fillRect(shoot_x, shoot_y, 32, 32, WHITE);
+
+    // show new bitmap
+    showBitmap(bitmapId, BLACK);
+}
+
+void KapTxLcd::showShootMode(unsigned char mode, bool invMode)
+{
+    unsigned char bitmapId;
+
+    // Serial.println(m);
+    switch (mode) {
+	case MODE_SINGLE:
+	    bitmapId = BM_MODE_SINGLE;
+	    break;
+	case MODE_CLUSTER:
+	    bitmapId = BM_MODE_CLUSTER;
+	    break;
+	case MODE_VPAN:
+	    bitmapId = BM_MODE_VPAN;
+	    break;
+	case MODE_HPAN:
+	    bitmapId = BM_MODE_HPAN;
+	    break;
+	case MODE_QUAD:
+	    bitmapId = BM_MODE_QUAD;
+	    break;
+	case MODE_360:
+	    bitmapId = BM_MODE_360;
+	    break;
+	default:
+	    bitmapId = BM_NONE;
+	    break;
+    }
+
+    int color = WHITE;  // normal background color
+    if (invMode) {
+	color = !color;  // invert color scheme
+    }
+
+    // erase old bitmap
+    display.fillRect(MODE_OFFSET_X, MODE_OFFSET_Y, 32, 32, color);
+
+    // show new bitmap
+    color = !color;
+    showBitmap(bitmapId, color);
+}
+
+#define SHOTS_ORIGIN_X 0
+#define SHOTS_ORIGIN_Y 0
+#define SHOTS_WIDTH 64
+#define SHOTS_HEIGHT 32
+#define SHOTS_CURSOR_X 8
+#define SHOTS_CURSOR_Y 8
+
+void KapTxLcd::showShots(bool autokap, int shots, bool inv)
+{
+    char buf[6];
+
+    // create text in buffer
+    if (autokap) {
+	strcpy_P(buf, (const char *)F("AUTO"));
+    }
+    else if (inv) {
+	// This control is highlighted, so show "MAN" instead of count
+	strcpy_P(buf, (const char *)F(" MAN"));
+    }
+    else {
+	sprintf_P(buf, (const char *)F("%4d"), shots);
+    }
+
+    // erase earlier content, set text color based on inverse state
+    if (inv) {
+	display.fillRect(SHOTS_ORIGIN_X, SHOTS_ORIGIN_Y, SHOTS_WIDTH-1, SHOTS_HEIGHT-1, BLACK);
+	display.setTextColor(WHITE, BLACK);
+    }
+    else {
+	display.fillRect(SHOTS_ORIGIN_X, SHOTS_ORIGIN_Y, SHOTS_WIDTH-1, SHOTS_HEIGHT-1, WHITE);
+	display.setTextColor(BLACK, WHITE);
+    }
+
+    // position cursor
+    display.setCursor(SHOTS_CURSOR_X+SHOTS_ORIGIN_X, SHOTS_CURSOR_Y+SHOTS_ORIGIN_Y);
+
+    // display it!
+    display.print(buf); 
+}
+
+#define HOVER_ORIGIN_X 64
+#define HOVER_ORIGIN_Y 64
+#define HOVER_HOR_X 5
+#define HOVER_HOR_Y 8
+#define HOVER_HOR_W 22
+#define HOVER_HOR_H 14
+#define HOVER_VER_X (HOVER_HOR_Y)
+#define HOVER_VER_Y (HOVER_HOR_X)
+#define HOVER_VER_W (HOVER_HOR_H)
+#define HOVER_VER_H (HOVER_HOR_W)
+
+void KapTxLcd::showHoVer(bool vertical, bool inv)
+{
+    unsigned char color;
+
+    // clear the Ho/Ver area
+    color = WHITE;  // assume we erase with white
+    if (inv) {
+	color = !color;  // erase with black
+    }
+    display.fillRect(HOVER_ORIGIN_X, HOVER_ORIGIN_Y, 31, 31, color);
+
+    color = !color;  // draw with opposite as background
+    if (vertical) {
+	// vertical
+	display.drawRect(HOVER_VER_X+HOVER_ORIGIN_X, HOVER_VER_Y + HOVER_ORIGIN_Y, HOVER_VER_W, HOVER_VER_H, color);
+	display.drawRect(HOVER_VER_X+HOVER_ORIGIN_X+1, HOVER_VER_Y+HOVER_ORIGIN_Y+1, HOVER_VER_W-2, HOVER_VER_H-2, color);
+    }
+    else {
+	// horizontal
+	display.drawRect(HOVER_HOR_X+HOVER_ORIGIN_X, HOVER_HOR_Y + HOVER_ORIGIN_Y, HOVER_HOR_W, HOVER_HOR_H, color);
+	display.drawRect(HOVER_HOR_X+HOVER_ORIGIN_X+1, HOVER_HOR_Y+HOVER_ORIGIN_Y+1, HOVER_HOR_W-2, HOVER_HOR_H-2, color);
+    }
+}
+
+// Triangle vertices for each view of the pan indicator.
+struct PanInd_s {
+    uint8_t x0;
+    uint8_t y0;
+    uint8_t x1;
+    uint8_t y1;
+    uint8_t x2;
+    uint8_t y2;
+};
+
+const struct PanInd_s panIndicator[24] PROGMEM =
+{
+    {56,64,16,72,16,57}, // 0
+    {55,58,19,75,15,61},
+    {52,53,23,78,15,65},
+    {48,48,27,80,16,69},
+    {43,44,31,81,18,73},
+    {38,41,35,81,21,77},
+    {32,40,40,80,24,80}, // 6
+    {26,41,43,77,29,81},
+    {20,44,46,73,33,81},
+    {16,48,48,69,37,80},
+    {12,52,49,65,41,78},
+    {9,58,49,61,45,75},
+    {8,64,48,56,48,72}, // 12
+    {9,70,45,53,49,67},
+    {12,76,41,50,49,63},
+    {16,80,37,48,48,59},
+    {20,84,33,47,46,55},
+    {26,87,29,47,43,51},
+    {32,88,24,49,39,48}, // 18
+    {38,87,21,51,35,47},
+    {43,84,18,55,31,47},
+    {48,80,16,59,27,48},
+    {52,76,15,63,23,50},
+    {55,70,15,67,19,53},
+};
+
+void KapTxLcd::showPan(int pan)
+{
+    static uint16_t x0 = 0;
+    static uint16_t y0 = 0;
+    static uint16_t x1 = 0;
+    static uint16_t y1 = 0;
+    static uint16_t x2 = 0;
+    static uint16_t y2 = 0;
+
+    // erase old triangle
+    display.fillTriangle(x0, y0, x1, y1, x2, y2, WHITE);
+
+    // clear pan area
+    // Serial.println(pan);
+    x0 = pgm_read_byte(&panIndicator[pan].x0);
+    y0 = pgm_read_byte(&panIndicator[pan].y0);
+    x1 = pgm_read_byte(&panIndicator[pan].x1);
+    y1 = pgm_read_byte(&panIndicator[pan].y1);
+    x2 = pgm_read_byte(&panIndicator[pan].x2);
+    y2 = pgm_read_byte(&panIndicator[pan].y2);
+
+    // draw new triangle
+    display.fillTriangle(x0, y0, x1, y1, x2, y2, BLACK);
+}
+
+void KapTxLcd::showTilt(int tilt)
+{
+    static unsigned char old_bitmapId = BM_NONE;
+    unsigned char bitmapId;
+
+    switch (tilt) {
+	case 0:
+	    bitmapId = BM_ARC_0;
+	    break;
+	case 1:
+	    bitmapId = BM_ARC_1;
+	    break;
+	case 2:
+	    bitmapId = BM_ARC_2;
+	    break;
+	case 15:
+	    bitmapId = BM_ARC_15;
+	    break;
+	case 16:
+	    bitmapId = BM_ARC_16;
+	    break;
+	case 17:
+	    bitmapId = BM_ARC_17;
+	    break;
+	case 18:
+	    bitmapId = BM_ARC_18;
+	    break;
+	case 19:
+	    bitmapId = BM_ARC_19;
+	    break;
+	case 20:
+	    bitmapId = BM_ARC_20;
+	    break;
+	case 21:
+	    bitmapId = BM_ARC_21;
+	    break;
+	case 22:
+	    bitmapId = BM_ARC_22;
+	    break;
+	case 23:
+	    bitmapId = BM_ARC_23;
+	    break;
+	default:
+	    bitmapId = BM_NONE;
+    }
+
+    // erase old bitmap
+    showBitmap(old_bitmapId, WHITE);
+
+    // show new bitmap
+    showBitmap(bitmapId, BLACK);
+
+    // remember old for next time
+    old_bitmapId = bitmapId;
+}
+
+void KapTxLcd::drawUpdates(unsigned char flags)
+{
+    PanTilt_t aimPoint;
+
+    // Serial.println("Update.");
+    if (flags & REFRESH_PAN_TILT) {
+	model->getUserPos(&aimPoint);
+	showPan(aimPoint.pan);
+	showTilt(aimPoint.tilt);
+    }
+    if (flags & REFRESH_HOVER) {
+	showHoVer(model->getHoVer(), !!(flags & INV_HOVER));
+    }
+    if (flags & REFRESH_SHUTTER) {
+	showShutter(model->getLcdShutterState());
+    }
+    if (flags & REFRESH_SHOOT_MODE) {
+	showShootMode(model->getShootModeDisp(), !!(flags & INV_SHOOT_MODE));
+    }
+    if (flags & REFRESH_AUTO_COUNT) {
+	showShots(model->getAuto(), model->getShotsQueued(), !!(flags & INV_AUTO_COUNT));
+    }
+}
+
 

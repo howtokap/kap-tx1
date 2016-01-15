@@ -1,3 +1,5 @@
+#pragma once
+
 #define PPM_CHANNELS (6)
 
 // TODO: Convert API value param from 0.5uS ticks to 1uS ticks
