@@ -1,19 +1,19 @@
 #pragma once 
 
 #include "Joystick.h"
-#include "KapTxModel.h"
+#include "Model.h"
 
 
 
 class JsController
 {
   public:
-    JsController(Joystick *_js, KapTxModel *_model);
+    JsController(Joystick *_js, Model *_model);
 
   private:
     // Instance data
     Joystick *js;
-    KapTxModel *model;
+    Model *model;
 
     // Joystick gesture state machine state
     unsigned char state;
@@ -39,11 +39,11 @@ class JsController
 class ShootController
 {
   public:
-    ShootController(KapTxModel *_model);
+    ShootController(Model *_model);
 
   private:
     // Instance data
-    KapTxModel *model;
+    Model *model;
 
   public:
     // Public API
@@ -66,10 +66,10 @@ class ShootController
 class SlewController
 {
   public:
-    SlewController(KapTxModel *_model);
+    SlewController(Model *_model);
 
   private:
-    KapTxModel *model;
+    Model *model;
 
     unsigned char state;
     unsigned int timer;
@@ -95,10 +95,10 @@ class SlewController
 class ShutterController
 {
   public:
-    ShutterController(KapTxModel *_model);
+    ShutterController(Model *_model);
 
   private:
-    KapTxModel *model;
+    Model *model;
     unsigned char state;
     unsigned int timer;
 
@@ -109,15 +109,15 @@ class ShutterController
     // TODO-DW
 };
 
-class KapTxController
+class Controller
 {
   public:
-    KapTxController(Joystick *js, KapTxModel *model);
+    Controller(Joystick *js, Model *model);
 
   private:
     // Instance data
     Joystick *js;
-    KapTxModel *model;
+    Model *model;
 
     JsController jsc;
     ShootController shoot;

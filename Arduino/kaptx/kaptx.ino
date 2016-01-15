@@ -5,9 +5,9 @@
 
 #include "Ppm.h"
 #include "Joystick.h"
-#include "KapTxLcd.h"
-#include "KapTxModel.h"
-#include "KapTxController.h"
+#include "View.h"
+#include "Model.h"
+#include "Controller.h"
 
 // Pins for Joystick.
 #define JS_BUTTON (9)
@@ -17,9 +17,9 @@
 // Create components from libraries
 Ppm ppm;
 Joystick js(JS_X, JS_Y, JS_BUTTON);
-KapTxModel model;                                 // model
-KapTxLcd view(&model);         // view 
-KapTxController controller(&js, &model);                     // controller
+Model model;                                 // model
+View view(&model);         // view 
+Controller controller(&js, &model);                     // controller
 
 // ----------------------------------------------------------------------------------------------
 // PPM for KAP

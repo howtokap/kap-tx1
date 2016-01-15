@@ -1,4 +1,4 @@
-#include "KapTxModel.h"
+#include "Model.h"
 
 // Pan and Tilt Servo tuning
 // The controller software represents angles with integers from 0 to 23.
@@ -87,9 +87,9 @@
 static void toPwm(PanTilt_t *pwm, const PanTilt_t *user);
 
 // -----------------------------------------------------------------------------------
-// KapTxModel Public methods
+// Model Public methods
 
-KapTxModel::KapTxModel()
+Model::Model()
 {
     userPos.pan = 6;  // facing away from operator
     userPos.tilt = 0;  // facing horizontal.
@@ -109,7 +109,7 @@ KapTxModel::KapTxModel()
     dispFlags = CHANGE_FLAGS;
 }
 
-void KapTxModel::setPan(int index)
+void Model::setPan(int index)
 {
     if (userPos.pan != index) {
 	userPos.pan = index;
@@ -117,7 +117,7 @@ void KapTxModel::setPan(int index)
     }
 }
 
-void KapTxModel::adjPan(int adj)
+void Model::adjPan(int adj)
 {
     userPos.pan += adj;
     if (userPos.pan > PAN_MAX) {
@@ -129,7 +129,7 @@ void KapTxModel::adjPan(int adj)
     dispFlags |= REFRESH_PAN_TILT;
 }
 
-void KapTxModel::setTilt(int index)
+void Model::setTilt(int index)
 {
     int oldTilt = userPos.tilt;
 
@@ -154,7 +154,7 @@ void KapTxModel::setTilt(int index)
 }
 
 // Note: this is intended to work with adjustments of +/- 1.
-void KapTxModel::adjTilt(int adj)
+void Model::adjTilt(int adj)
 {
     if ((adj > 0) && (userPos.tilt == TILT_MAX)) return;  // no change
     if ((adj < 0) && (userPos.tilt == TILT_MIN)) return;  // no change
@@ -164,17 +164,17 @@ void KapTxModel::adjTilt(int adj)
     dispFlags |= REFRESH_PAN_TILT;
 }
 
-void KapTxModel::getUserPos(PanTilt_t *aimPoint)
+void Model::getUserPos(PanTilt_t *aimPoint)
 {
     *aimPoint = userPos;
 }
 
-bool KapTxModel::getHoVer() 
+bool Model::getHoVer() 
 {
     return hoVer;
 }
 
-void KapTxModel::setHoVer(bool state)
+void Model::setHoVer(bool state)
 {
     if (state != hoVer) {
 	dispFlags |= REFRESH_HOVER;
@@ -182,7 +182,7 @@ void KapTxModel::setHoVer(bool state)
     hoVer = state;
 }
 
-void KapTxModel::invHoVer(bool state)
+void Model::invHoVer(bool state)
 {
     if (state) {
 	dispFlags |= INV_HOVER;
@@ -193,7 +193,7 @@ void KapTxModel::invHoVer(bool state)
     dispFlags |= REFRESH_HOVER;
 }
 
-void KapTxModel::setAuto(bool state)
+void Model::setAuto(bool state)
 {
     if (state != autokap) {
 	dispFlags |= REFRESH_AUTO_COUNT;
@@ -202,12 +202,12 @@ void KapTxModel::setAuto(bool state)
     updateLcdShutterState();
 }
 
-bool KapTxModel::getAuto()
+bool Model::getAuto()
 {
     return autokap;
 }
 
-void KapTxModel::invAuto(bool state)
+void Model::invAuto(bool state)
 {
     if (state) {
 	dispFlags |= INV_AUTO_COUNT;
@@ -218,7 +218,7 @@ void KapTxModel::invAuto(bool state)
     dispFlags |= REFRESH_AUTO_COUNT;
 }
 
-void KapTxModel::setDispMode(Mode_t mode)
+void Model::setDispMode(Mode_t mode)
 {
     if (mode != shootMode_disp) {
 	shootMode_disp = mode;
@@ -226,13 +226,13 @@ void KapTxModel::setDispMode(Mode_t mode)
     }
 }
 
-void KapTxModel::setModeToDispMode()
+void Model::setModeToDispMode()
 {
     shootMode = shootMode_disp;
     dispFlags |= REFRESH_SHOOT_MODE;
 }
 
-void KapTxModel::invMode(bool state)
+void Model::invMode(bool state)
 {
     if (state) {
 	dispFlags |= INV_SHOOT_MODE;
@@ -243,17 +243,17 @@ void KapTxModel::invMode(bool state)
     dispFlags |= REFRESH_SHOOT_MODE;
 }
 
-Mode_t KapTxModel::getShootMode()
+Mode_t Model::getShootMode()
 {
     return shootMode;
 }
 
-Mode_t KapTxModel::getShootModeDisp()
+Mode_t Model::getShootModeDisp()
 {
     return shootMode_disp;
 }
 
-unsigned char KapTxModel::getDispFlags()
+unsigned char Model::getDispFlags()
 {
     unsigned char retval = dispFlags;
 
@@ -262,12 +262,12 @@ unsigned char KapTxModel::getDispFlags()
     return retval;
 }
 
-unsigned char KapTxModel::getLcdShutterState()
+unsigned char Model::getLcdShutterState()
 {
     return lcdShutterState;
 }
 
-bool KapTxModel::atGoalPos()
+bool Model::atGoalPos()
 {
     PanTilt_t goal;
     getGoalPwm(&goal);
@@ -278,7 +278,7 @@ bool KapTxModel::atGoalPos()
 	    (servoVel.tilt == 0));
 }
 
-void KapTxModel::getGoalPwm(PanTilt_t *goal)
+void Model::getGoalPwm(PanTilt_t *goal)
 {
     if (shotsQueued) {
 	// slew target is the head of shot queue
@@ -290,7 +290,7 @@ void KapTxModel::getGoalPwm(PanTilt_t *goal)
     }
 }
 
-void KapTxModel::queueShot(PanTilt_t *aimPoint)
+void Model::queueShot(PanTilt_t *aimPoint)
 {
     PanTilt_t aimPointPwm;
     toPwm(&aimPointPwm, aimPoint);
@@ -298,12 +298,12 @@ void KapTxModel::queueShot(PanTilt_t *aimPoint)
     queueShotPwm(&aimPointPwm);
 }
 
-unsigned KapTxModel::getShotsQueued()
+unsigned Model::getShotsQueued()
 {
     return shotsQueued;
 }
 
-void KapTxModel::dequeueShot()
+void Model::dequeueShot()
 {
     for (int n = 0; n < SHOT_QUEUE_LEN-2; n++) {
 	shotQueue[n] = shotQueue[n+1];
@@ -312,44 +312,44 @@ void KapTxModel::dequeueShot()
     dispFlags |= REFRESH_AUTO_COUNT;
 }
 
-void KapTxModel::getServos(PanTilt_t *pos, PanTilt_t *vel)
+void Model::getServos(PanTilt_t *pos, PanTilt_t *vel)
 {
     *pos = servoPos;
     *vel = servoVel;
 }
 
-void KapTxModel::setServos(PanTilt_t *pos, PanTilt_t *vel)
+void Model::setServos(PanTilt_t *pos, PanTilt_t *vel)
 {
     servoPos = *pos;
     servoVel = *vel;
 }
 
-int KapTxModel::getPanPwm()
+int Model::getPanPwm()
 {
     return servoPos.pan;
 }
 
-int KapTxModel::getTiltPwm()
+int Model::getTiltPwm()
 {
     return servoPos.tilt;
 }
 
-int KapTxModel::getShutterPwm()
+int Model::getShutterPwm()
 {
     return shutterServo;
 }
 
-void KapTxModel::setShutterPwm(int pwm)
+void Model::setShutterPwm(int pwm)
 {
     shutterServo = pwm;
 }
 
-int KapTxModel::getHoVerPwm()
+int Model::getHoVerPwm()
 {
     return (hoVer ? HOVER_VERT_POS : HOVER_HOR_POS);
 }
 
-void KapTxModel::setShutterState(unsigned char state)
+void Model::setShutterState(unsigned char state)
 {
     unsigned char lcd_ss;
 
@@ -357,13 +357,13 @@ void KapTxModel::setShutterState(unsigned char state)
     updateLcdShutterState();
 }
 
-void KapTxModel::setSlewStable(bool state)
+void Model::setSlewStable(bool state)
 {
     slewStable = state;
     updateLcdShutterState();
 }
 
-bool KapTxModel::getSlewStable()
+bool Model::getSlewStable()
 {
     return slewStable;
 }
@@ -371,7 +371,7 @@ bool KapTxModel::getSlewStable()
 // --------------------------------------------------------------------------------
 // Utility methods
 
-void KapTxModel::updateLcdShutterState()
+void Model::updateLcdShutterState()
 {
   unsigned char state = 0;
 
@@ -395,7 +395,7 @@ void KapTxModel::updateLcdShutterState()
   }
 }
 
-void KapTxModel::queueShotPwm(PanTilt_t *aimPoint)
+void Model::queueShotPwm(PanTilt_t *aimPoint)
 {
     // bail out if queue is full
     if (shotsQueued == SHOT_QUEUE_LEN) return;
@@ -414,7 +414,7 @@ static int iabs(int x)
     return x;
 }
 
-void KapTxModel::toPwm(PanTilt_t *pwm, const PanTilt_t *user)
+void Model::toPwm(PanTilt_t *pwm, const PanTilt_t *user)
 {
     bool foundMatch;
     int panPwm = 0;

@@ -1,10 +1,10 @@
-#include "KapTxLcd.h"
+#include "View.h"
 
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SharpMem.h>
 
-#include "KapTxModel.h"
+#include "Model.h"
 
 #define REFRESH_INTERVAL 25
 
@@ -48,7 +48,7 @@ enum {
 Adafruit_SharpMem display(LCD_SCK, LCD_MOSI, LCD_SS);
 
 // Constructor
-KapTxLcd::KapTxLcd(KapTxModel *_model) :
+View::View(Model *_model) :
   model(_model)
 {
     sinceRefresh = 0;
@@ -56,7 +56,7 @@ KapTxLcd::KapTxLcd(KapTxModel *_model) :
 }
 
 // Set up
-void KapTxLcd::setup()
+void View::setup()
 {
     // start & clear the display
     display.begin();
@@ -72,7 +72,7 @@ void KapTxLcd::setup()
     display.refresh();
 }
 
-void KapTxLcd::update() 
+void View::update() 
 {
     unsigned char flags = model->getDispFlags();
 
@@ -463,7 +463,7 @@ static const unsigned char shutter_trig_bits[] PROGMEM = {
 // ------------------------------------------------------------------------------
 // Utility methods
 
-void KapTxLcd::showBitmap(unsigned char bitmapId, unsigned char color)
+void View::showBitmap(unsigned char bitmapId, unsigned char color)
 {
     switch (bitmapId) {
 	case BM_NONE:
@@ -541,7 +541,7 @@ void KapTxLcd::showBitmap(unsigned char bitmapId, unsigned char color)
     }
 }
 
-void KapTxLcd::showShutter(unsigned char state)
+void View::showShutter(unsigned char state)
 {
     unsigned char bitmapId;
 
@@ -571,7 +571,7 @@ void KapTxLcd::showShutter(unsigned char state)
     showBitmap(bitmapId, BLACK);
 }
 
-void KapTxLcd::showShootMode(unsigned char mode, bool invMode)
+void View::showShootMode(unsigned char mode, bool invMode)
 {
     unsigned char bitmapId;
 
@@ -620,7 +620,7 @@ void KapTxLcd::showShootMode(unsigned char mode, bool invMode)
 #define SHOTS_CURSOR_X 8
 #define SHOTS_CURSOR_Y 8
 
-void KapTxLcd::showShots(bool autokap, int shots, bool inv)
+void View::showShots(bool autokap, int shots, bool inv)
 {
     char buf[6];
 
@@ -664,7 +664,7 @@ void KapTxLcd::showShots(bool autokap, int shots, bool inv)
 #define HOVER_VER_W (HOVER_HOR_H)
 #define HOVER_VER_H (HOVER_HOR_W)
 
-void KapTxLcd::showHoVer(bool vertical, bool inv)
+void View::showHoVer(bool vertical, bool inv)
 {
     unsigned char color;
 
@@ -726,7 +726,7 @@ const struct PanInd_s panIndicator[24] PROGMEM =
     {55,70,15,67,19,53},
 };
 
-void KapTxLcd::showPan(int pan)
+void View::showPan(int pan)
 {
     static uint16_t x0 = 0;
     static uint16_t y0 = 0;
@@ -751,7 +751,7 @@ void KapTxLcd::showPan(int pan)
     display.fillTriangle(x0, y0, x1, y1, x2, y2, BLACK);
 }
 
-void KapTxLcd::showTilt(int tilt)
+void View::showTilt(int tilt)
 {
     static unsigned char old_bitmapId = BM_NONE;
     unsigned char bitmapId;
@@ -807,7 +807,7 @@ void KapTxLcd::showTilt(int tilt)
     old_bitmapId = bitmapId;
 }
 
-void KapTxLcd::drawUpdates(unsigned char flags)
+void View::drawUpdates(unsigned char flags)
 {
     PanTilt_t aimPoint;
 

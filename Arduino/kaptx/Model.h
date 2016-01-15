@@ -50,10 +50,10 @@ struct PanTilt_s {
 };
 typedef struct PanTilt_s PanTilt_t;
 
-class KapTxModel
+class Model
 {
   public:
-    KapTxModel();
+    Model();
 
   private:
     // Instance data

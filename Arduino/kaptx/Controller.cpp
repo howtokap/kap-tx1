@@ -1,4 +1,4 @@
-#include "KapTxController.h"
+#include "Controller.h"
 
 #include <Arduino.h>
 
@@ -19,7 +19,7 @@
 
 #define JS_SLIDE_THRESH (100)
 
-JsController::JsController(Joystick *_js, KapTxModel *_model)
+JsController::JsController(Joystick *_js, Model *_model)
 {
     // Store references to joystick interface and model
     js = _js;
@@ -327,7 +327,7 @@ bool JsController::isSlidingUD()
 // -------------------------------------------------------------------------------------
 // ShootController
 
-ShootController::ShootController(KapTxModel *_model)
+ShootController::ShootController(Model *_model)
 {
     model = _model;
 }
@@ -597,7 +597,7 @@ int ShootController::addTilt(int tilt, int n)
 #define ACCEL_PAN (1)
 #define ACCEL_TILT (1)
 
-SlewController::SlewController(KapTxModel *_model)
+SlewController::SlewController(Model *_model)
 {
     model = _model;
     state = SLEW_STABLE;
@@ -727,7 +727,7 @@ void SlewController::moveServos()
 #define TIME_SHUTTER_DOWN (5)
 #define TIME_SHUTTER_POST (35)
 
-ShutterController::ShutterController(KapTxModel *_model)
+ShutterController::ShutterController(Model *_model)
 {
   model = _model;
   state = SHUTTER_IDLE;
@@ -793,9 +793,9 @@ bool ShutterController::isIdle()
 }
 
 // -------------------------------------------------------------------------------------
-// KapTxController
+// Controller
 
-KapTxController::KapTxController(Joystick *_js, KapTxModel *_model) :
+Controller::Controller(Joystick *_js, Model *_model) :
     jsc(_js, _model),
     shoot(_model),
     slew(_model),
@@ -806,7 +806,7 @@ KapTxController::KapTxController(Joystick *_js, KapTxModel *_model) :
 }
 
 // Controller actions
-void KapTxController::update()
+void Controller::update()
 {
     bool slewStable;
     bool jsPressed;

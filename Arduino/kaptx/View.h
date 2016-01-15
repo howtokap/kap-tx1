@@ -1,17 +1,17 @@
 #pragma once
 
 
-class KapTxModel;
+class Model;
 
-class KapTxLcd
+class View
 {
   public:
-  KapTxLcd(KapTxModel *model);
+  View(Model *model);
 
   private:
     // Instance data
     // Adafruit_SharpMem display;
-    KapTxModel *model;
+    Model *model;
 /*    TODO-DW : remove
     unsigned char flags;
     signed char pan;  // 0-23
