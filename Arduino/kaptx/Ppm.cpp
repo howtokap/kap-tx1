@@ -18,45 +18,51 @@
 #define TIMSK1_TOIE (0x01)
 
 #define PPM_CHANNELS (6)
-#define PPM_PHASES (PPM_CHANNELS+1)
-#define PPM_RESYNC_PHASE (0)
 #define PPM_PULSE_WIDTH (800)  // 400uS
 #define PPM_CENTER (3000)      // 1.5mS
 #define PPM_RANGE (1600)       // 800uS throw, each side of center.
 #define PPM_FRAME_LEN (40000)  // 20ms -> 50Hz
 
+#define MHZ_8
+
+#ifndef MHZ_8
+#ifndef MHZ_16
+#error Please define either MHZ_8 or MHZ_16 for your processor
+#endif
+#endif
+
+#ifdef MHZ_16
+#define T1_CLOCKS(n) (n)
+#endif
+#ifdef MHZ_8
+#define T1_CLOCKS(n) (n >> 1)
+#endif
+
 // ---------------------------------------------------------------------------------
 
 struct Ppm_s {
-    int phase; // which phase of PPM we are in, 0-6.  6 is long resync phase. 
-    int time[7 /* PPM_PHASES */];  // width of each PPM phase (1 = 0.5uS)
+    unsigned phase; // which phase of PPM we are in, 0-6.  6 is long resync phase. 
+    uint16_t time[PPM_CHANNELS];  // width of each PPM channel (1 = 0.5uS)
     volatile bool startCycle;
 } _ppm;
 
 ISR(TIMER1_OVF_vect) 
 {
-    static unsigned remainder = PPM_FRAME_LEN;
+    static uint16_t remainder = T1_CLOCKS(PPM_FRAME_LEN);
 
     // Handle Timer 1 overflow: Start of PPM interval
     // Program total length of this phase in 0.5uS units.
-    _ppm.phase += 1;
-    if (_ppm.phase > PPM_CHANNELS) {
-	_ppm.phase = 0;
+    if (_ppm.phase >= PPM_CHANNELS) {
+        OCR1A = remainder;
+	remainder = T1_CLOCKS(PPM_FRAME_LEN);
+ 	_ppm.phase = 0;
 	_ppm.startCycle = true;
-    }
-
-    // Remainder computation
-    if (_ppm.phase == 0) {
-	// Store remainder
-	_ppm.time[_ppm.phase] = remainder;
-	remainder = PPM_FRAME_LEN;
-    }
+   }
     else {
-	remainder -= _ppm.time[_ppm.phase];
+        OCR1A = _ppm.time[_ppm.phase];
+        remainder -= _ppm.time[_ppm.phase];
+        _ppm.phase++;
     }
-
-    // Program next interval time.
-    OCR1A = _ppm.time[_ppm.phase];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -64,6 +70,8 @@ ISR(TIMER1_OVF_vect)
 
 Ppm::Ppm()
 {
+  // Disable timer 1 interrupt until we are ready for it
+  TIMSK1 = 0;
 }
 
 void Ppm::setup()
@@ -71,30 +79,24 @@ void Ppm::setup()
     pinMode(PPM_OUT, OUTPUT);
 
     // Init PPM phases
-    int remainder = PPM_FRAME_LEN;
-    for (_ppm.phase = 1; _ppm.phase <= PPM_CHANNELS; _ppm.phase++) {
-	_ppm.time[_ppm.phase] = PPM_CENTER;  // 1.5mS
-	remainder -= _ppm.time[_ppm.phase];
+    for (unsigned n = 0; n < PPM_CHANNELS; n++) {
+	_ppm.time[n] = T1_CLOCKS(PPM_CENTER);  // 1.5mS
     }
-    _ppm.time[PPM_RESYNC_PHASE] = remainder;
-    _ppm.phase = 0;
+    
+    // Start PPM Generation on idle phase
+    _ppm.phase = PPM_CHANNELS-1;
     _ppm.startCycle = true;
-
-    // Disable Interrupts
-    cli();
 
     // Init for PPM Generation
 
     TCCR1A = WGM_15_1A | COM1A_00 | COM1B_11 | COM1C_00; // Fast PWM with OCR1A defining TOP
     TCCR1B = WGM_15_1B | CS1_DIV8;                       // Prescaler : system clock / 8.
     TCCR1C = 0;                                          // Not used
-    OCR1A = _ppm.time[_ppm.phase];                           // Length of current phase
-    OCR1B = PPM_PULSE_WIDTH;                             // Width of pulses
+    OCR1A = T1_CLOCKS(PPM_FRAME_LEN);                               // First frame len
+    OCR1B = T1_CLOCKS(PPM_PULSE_WIDTH);                             // Width of pulses
     // OCR1C = 0;                                           // Not used
     TIMSK1 = TIMSK1_TOIE;                                // interrupt on overflow (end of phase)
-
-    // Enable interrupts
-    sei();}
+}
 
 // Set PPM Channel to value.
 // A value of zero corresponds to the center of throw, pulse width of 1500uS
@@ -108,7 +110,7 @@ void Ppm::write(int chan, int value)
   if ((value < -PPM_RANGE) || (value > PPM_RANGE)) return;
 
   // Store this channel's time
-  _ppm.time[chan] = PPM_CENTER + value;
+  _ppm.time[chan] = T1_CLOCKS(PPM_CENTER + value);
 }
 
 // Wait until next PPM cycle starts
