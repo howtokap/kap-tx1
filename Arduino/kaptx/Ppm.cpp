@@ -110,7 +110,7 @@ void Ppm::write(int chan, int value)
   if ((value < -PPM_RANGE) || (value > PPM_RANGE)) return;
 
   // Store this channel's time
-  _ppm.time[chan] = T1_CLOCKS(PPM_CENTER + value);
+  _ppm.time[chan-1] = T1_CLOCKS(PPM_CENTER + value);
 }
 
 // Wait until next PPM cycle starts
