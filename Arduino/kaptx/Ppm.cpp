@@ -23,7 +23,9 @@
 #define PPM_RANGE (1600)       // 800uS throw, each side of center.
 #define PPM_FRAME_LEN (40000)  // 20ms -> 50Hz
 
-#define MHZ_8
+// Uncomment one of these according to your Arduino's speed
+// #define MHZ_8
+#define MHZ_16
 
 #ifndef MHZ_8
 #ifndef MHZ_16

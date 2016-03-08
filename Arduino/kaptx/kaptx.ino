@@ -28,8 +28,8 @@ Controller controller(&js, &model);                     // controller
 #define CHAN_TILT (2)
 #define CHAN_SHUTTER (3)
 #define CHAN_HOVER (4)
-#define CHAN_UNUSED2 (5)
-#define CHAN_UNUSED3 (6)
+#define CHAN_5_UNUSED (5)
+#define CHAN_6_UNUSED (6)
 
 // ---------------------------------------------------------------------
 
@@ -60,6 +60,10 @@ void loop()
     ppm.write(CHAN_TILT, model.getTiltPwm());
     ppm.write(CHAN_SHUTTER, model.getShutterPwm());
     ppm.write(CHAN_HOVER, model.getHoVerPwm());
+
+    // repeat tilt on channel 6 just to test that channel
+    ppm.write(CHAN_6_UNUSED, model.getTiltPwm());
+
 
     // update LCD
     view.update();
