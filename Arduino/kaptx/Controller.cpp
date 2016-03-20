@@ -1,6 +1,7 @@
 #include "Controller.h"
 
 #include <Arduino.h>
+#include "Tuning.h"
 
 // -------------------------------------------------------------------------------------
 // JsController
@@ -125,14 +126,6 @@ bool JsController::update()
 		model->adjTilt(1);
 		state = JS_IDLE;
 	    }
-#if 0
-// Counter-intuitive to engage tilt setting from up position.
-	    if (isSlidingLR()) {
-		// Start tracking tilt with joystick
-		state = JS_SET_TILT;
-		setJsTilt();
-	    }
-#endif
 	    break;
 	case JS_DOWN:
 	    if (js->isCenter()) {
@@ -205,7 +198,6 @@ bool JsController::update()
     }
 
     // Return indicator that joystick was pressed to trigger shoot controller.
-    // (TODO-DW : Produce this within state machine instead of passing raw value from JS.)
     return js->wasPressed();
 }
 
@@ -229,11 +221,11 @@ void JsController::setJsHoVer()
 
     if ((i == 0) || (i == 7) || (i == 8) || (i == 15)) {
 	// set in horizontal mode
-	model->setHoVer(false);
+        model->setHoVer(false);
     }
     if ((i == 3) || (i == 4) || (i == 11) || (i == 12)) {
 	// set in vertical mode
-	model->setHoVer(true);
+        model->setHoVer(true);
     }
 }
 
@@ -592,8 +584,6 @@ int ShootController::addTilt(int tilt, int n)
 #define SLEW_MOVING (1)
 #define SLEW_STABILIZING (2)
 
-#define TIME_STABILIZING (10)
-
 #define ACCEL_PAN (1)
 #define ACCEL_TILT (1)
 
@@ -719,14 +709,6 @@ void SlewController::moveServos()
 // -------------------------------------------------------------------------------------
 // ShutterController
 
-#define SHUTTER_DOWN_POS (3600)  // 1.8ms
-#define SHUTTER_UP_POS (2400)    // 1.2ms
-#define HOVER_HOR_POS (3600)     // 1.8ms
-#define HOVER_VERT_POS (2400)    // 1.2ms
-
-#define TIME_SHUTTER_DOWN (5)
-#define TIME_SHUTTER_POST (35)
-
 ShutterController::ShutterController(Model *_model)
 {
   model = _model;
@@ -749,7 +731,7 @@ void ShutterController::update()
 	    // Serial.println("shutter state TRIGGERED");
 	    if (model->getSlewStable()) {
 		// trip shutter and transition to DOWN state
-		model->setShutterPwm(SHUTTER_DOWN_POS);
+		model->setShutter(true);
 		timer = TIME_SHUTTER_DOWN;
 		state = SHUTTER_DOWN;
 		// Serial.println("shutter state DOWN");
@@ -761,7 +743,7 @@ void ShutterController::update()
 		timer--;
 	    } else {
 		// shutter has been down long enough
-		model->setShutterPwm(SHUTTER_UP_POS);
+		model->setShutter(false);
 		timer = TIME_SHUTTER_POST;
 		state = SHUTTER_POST;
 		// Serial.println("shutter state POST");
@@ -812,7 +794,7 @@ void Controller::update()
     bool jsPressed;
 
     // Update each controller component
-    jsPressed = jsc.update();  // TODO-DW : Better way to communicate joystick presses to shoot controller?
+    jsPressed = jsc.update();
     shoot.update(jsPressed);
     slew.update(shutter.isIdle());
     shutter.update();

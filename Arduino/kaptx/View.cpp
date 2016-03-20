@@ -86,14 +86,14 @@ void View::update()
     // or it will refresh the display if needed but not both.
 
     if (flags & CHANGE_FLAGS) {
-	// TODO-DW : draw updates on screen buffer
+	// draw updates on screen buffer
 	drawUpdates(flags);
 	
 	// A refresh will be needed on the next cycle
 	refreshNeeded = true;
     }
     else if (refreshNeeded) {
-	// TODO-DW : Do a refresh now
+	// Do a refresh now
 	display.refresh();
 	sinceRefresh = 0;
 	refreshNeeded = false;

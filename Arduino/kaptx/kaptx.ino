@@ -8,15 +8,11 @@
 #include "View.h"
 #include "Model.h"
 #include "Controller.h"
-
-// Pins for Joystick.
-#define JS_BUTTON (9)
-#define JS_X (A0)
-#define JS_Y (A1)
+#include "Tuning.h"
 
 // Create components from libraries
 Ppm ppm;
-Joystick js(JS_X, JS_Y, JS_BUTTON);
+Joystick js;
 Model model;                                 // model
 View view(&model);         // view 
 Controller controller(&js, &model);                     // controller
@@ -58,8 +54,8 @@ void loop()
     struct PanTilt_s pos;
     ppm.write(CHAN_PAN, model.getPanPwm());
     ppm.write(CHAN_TILT, model.getTiltPwm());
-    ppm.write(CHAN_SHUTTER, model.getShutterPwm());
-    ppm.write(CHAN_HOVER, model.getHoVerPwm());
+    ppm.write(CHAN_SHUTTER, model.getShutter() ? SHUTTER_DOWN_PWM : SHUTTER_UP_PWM);
+    ppm.write(CHAN_HOVER, model.getHoVer() ? HOVER_VERT_PWM : HOVER_HOR_PWM);
 
     // repeat tilt on channel 6 just to test that channel
     ppm.write(CHAN_6_UNUSED, model.getTiltPwm());

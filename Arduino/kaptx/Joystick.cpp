@@ -1,4 +1,5 @@
 #include "Joystick.h"
+#include "Tuning.h"
 
 #include <Arduino.h>
 
@@ -16,12 +17,12 @@
 #define TAN_7_5 (0.13165250)
 
 // Public API
-Joystick::Joystick(int xPin, int yPin, int butPin)
+Joystick::Joystick()
 {
   // Save params
-  x_pin = xPin;
-  y_pin = yPin;
-  but_pin = butPin;
+  x_pin = JS_X;
+  y_pin = JS_Y;
+  but_pin = JS_BUTTON;
 }
 
 void Joystick::setup()
@@ -38,9 +39,9 @@ void Joystick::poll()
 {
     bool oldbut = but;
 
-    // Read input signals
-    x = JS_MID - analogRead(x_pin);
-    y = JS_MID - analogRead(y_pin);
+    // Read input signals and convert to x, y.
+    x = JS_DIR_X * (JS_MID - analogRead(x_pin));
+    y = JS_DIR_Y * (JS_MID - analogRead(y_pin));
     but = digitalRead(but_pin);
 
     // Update debounce timer

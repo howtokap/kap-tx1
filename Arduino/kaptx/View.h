@@ -12,18 +12,6 @@ class View
     // Instance data
     // Adafruit_SharpMem display;
     Model *model;
-/*    TODO-DW : remove
-    unsigned char flags;
-    signed char pan;  // 0-23
-    signed char tilt; // -3 - 8
-    unsigned char shots;
-    unsigned char shootMode;
-    unsigned char shutterState;
-    unsigned char shutterStateLcd;
-    bool vertical;
-    bool autokap;
-    bool priorityRefresh;
-*/
     unsigned char sinceRefresh;
     bool refreshNeeded;
 

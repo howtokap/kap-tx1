@@ -15,7 +15,8 @@ class Ppm
   // Set PPM Channel to value.
   // A value of zero corresponds to the center of throw, pulse width of 1500uS
   // A positive value, v, corresponds to a longer pulse
-  void write(int chan, int value_us);
+  // value is in half-microsecond increments from -1600 to 1600.
+  void write(int chan, int value);
 
   // Wait until next PPM cycle starts
   void sync();

@@ -1,86 +1,8 @@
 #include "Model.h"
+#include "Tuning.h"
+#include "Controller.h"
 
-// Pan and Tilt Servo tuning
-// The controller software represents angles with integers from 0 to 23.
-// 0 represents 0 degrees (pan to the right, tilt is horizontal)
-// 6 represents 90 degrees, pan downwind, tilt would be up (not allowed)
-// 12 represents 180 degrees, pan left, tilt horizontal but backwards (invalid)
-// 18 represents 270 degrees, pan upwind, tilt straight down.
-// [Note: valid tilt angles are +30 degrees to -135
-//        in this scheme, these correspond to 2, 1, 0, 23, 22, ..., 15.]
-//
-// To move the servos to the corresponding positions, these need to be converted
-// to PWM offsets in the range -1600 to 1600.  (Units are microseconds offset
-// from center position)
-// The formulas used are: 
-//     PAN PWM = <pan> * PWM_FACTOR_PAN + PWM_OFFSET_PAN.
-//     TILT PWM = <tilt> * PWM_FACTOR_TILT + PWM_OFFSET_TILT.
-//
-// The values provided below are correct for my rig but probably not yours.
-// You will need to change them.
-//
-// To find the correct values, try this procedure:
-// Step 1 : Determine offsets.
-//      Set PWM_FACTOR_PAN and PWM_FACTOR_TILT to 0.
-//      Run the software and see where the servos aim just after power on.
-//      Then, modify PWM_OFFSET_PAN and PWM_OFFSET_TILT and retry this.
-//      Keep adjusting these until the tilt is horizontal and the pan is to
-//           the right.
-//      (The offsets should stay in the range -1600 to 1600)
-//
-// Step 2 : Determine factors.
-//      Now set the PWM_FACTOR_PAN and PWM_FACTOR_TILT parameters to 100.
-//      Run the software, then adjust aim point on the display to be 
-//           pan straight away from you, tilt straight down.
-//      Is the rig pointing there?  No, adjust the factors and try again.
-//      If the rig moves the wrong way, the factor will need to change sign.
-//      
-// Once the factors are correct, the pan and tilt of the rig should 
-// match the controller's display for all angles.
-//      
-
-#define PWM_FACTOR_PAN (133)
-#define PWM_OFFSET_PAN (-800)
-#define PWM_FACTOR_TILT (265)
-#define PWM_OFFSET_TILT (893)
 #define PWM_MAX_OFFSET (1600)
-
-#define ACCEL_PAN (1)
-#define ACCEL_TILT (1)
-
-// #define SHOOT_IDLE (0)
-// #define SHOOT_ACTIVE (1)
-
-#define NEUTRAL_DISP_TIME (25)
-#define DISP_NONE (0)
-#define DISP_PAN (1)
-#define DISP_TILT (2)
-#define DISP_MODE (3)
-#define DISP_HOVER (4)
-
-#define SLEW_STABLE (0)
-#define SLEW_MOVING (1)
-#define SLEW_STABILIZING (2)
-
-#define TICKS_PER_SECOND (50)
-#define SECONDS(n) (n * TICKS_PER_SECOND)
-#define TIME_STABILIZING (10)
-#define TIME_SHUTTER_DOWN (5)
-#define TIME_SHUTTER_POST (35)
-#define TIME_JS_INITIAL (25)
-#define TIME_JS_REPEAT (3)
-
-#define SHUTTER_IDLE (0)
-#define SHUTTER_TRIGGERED (1)
-#define SHUTTER_DOWN (2)
-#define SHUTTER_POST (3)
-
-#define SHUTTER_DOWN_POS (600)   // 1.8ms
-#define SHUTTER_UP_POS (-600)    // 1.2ms
-#define HOVER_HOR_POS (600)      // 1.8ms
-#define HOVER_VERT_POS (-600)    // 1.2ms
-
-#define ARRAY_LEN(a) ((sizeof(a)) / (sizeof(a[0])))
 
 // ----------------------------------------------------------------------------------
 // Forward declaration
@@ -97,13 +19,11 @@ Model::Model()
     toPwm(&servoPos, &userPos);
     servoVel.pan = 0;
     servoVel.tilt = 0;
-
-    shutterServo = SHUTTER_UP_POS;
+    shutterPressed = false;
 
     shootMode = MODE_SINGLE;
     shotsQueued = 0;
 
-    hoVer = false;
     autokap = false;
 
     dispFlags = CHANGE_FLAGS;
@@ -334,19 +254,14 @@ int Model::getTiltPwm()
     return servoPos.tilt;
 }
 
-int Model::getShutterPwm()
+bool Model::getShutter()
 {
-    return shutterServo;
+    return shutterPressed;
 }
 
-void Model::setShutterPwm(int pwm)
+void Model::setShutter(bool pressed)
 {
-    shutterServo = pwm;
-}
-
-int Model::getHoVerPwm()
-{
-    return (hoVer ? HOVER_VERT_POS : HOVER_HOR_POS);
+    shutterPressed = pressed;
 }
 
 void Model::setShutterState(unsigned char state)

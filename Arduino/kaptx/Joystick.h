@@ -3,7 +3,7 @@
 class Joystick
 {
  public:
-  Joystick(int xPin, int yPin, int butPin);
+    Joystick();
 
   void setup();
   void poll();

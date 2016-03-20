@@ -65,11 +65,15 @@ class Model
     PanTilt_t userPos;
 
     // current servo positions
-    // struct PanTilt servoGoalPos;  // +/- 1000, ms deviation from center PWM.
-    PanTilt_t servoPos;      // +/- 1000ms deviation from center PWM
+    // struct PanTilt servoGoalPos;  // +/- 1000, us deviation from center PWM.
+    PanTilt_t servoPos;      // +/- 1000, us deviation from center PWM
     PanTilt_t servoVel;      // delta pos per 20ms tick
 
-    int shutterServo;
+    // int shutterServoPwm;     // PWM value for shutter servo
+
+    bool shutterPressed;     // Shutter activated: true
+    bool hoVer;              // HoVer switch: true = vertical;
+    // int hoVerPwm;            // PWM Value for HoVer servo
 
     Mode_t shootMode;
     Mode_t shootMode_disp;
@@ -77,7 +81,6 @@ class Model
     unsigned int shotsQueued;
     PanTilt_t shotQueue[SHOT_QUEUE_LEN];
 
-    bool hoVer;  // true represents vertical
     bool autokap;
 
     unsigned char dispFlags;
@@ -94,9 +97,12 @@ class Model
     void adjTilt(int increment);
     void getUserPos(PanTilt_s *aimPoint);
 
-    void setHoVer(bool state);
     bool getHoVer();
+    void setHoVer(bool state);
     void invHoVer(bool state);
+
+    bool getShutter();
+    void setShutter(bool pressed);
 
     void setAuto(bool state);
     bool getAuto();
@@ -126,9 +132,10 @@ class Model
     void setServos(PanTilt_t *pos, PanTilt_t *vel);
     int getPanPwm();
     int getTiltPwm();
-    int getShutterPwm();
-    void setShutterPwm(int pwm);
-    int getHoVerPwm();
+    // int getShutterPwm();
+    // void setShutterPwm(int pwm);
+    // int getHoVerPwm();
+    // void setHoVerPwm(int pwm);
 
     void setShutterState(unsigned char state);
 

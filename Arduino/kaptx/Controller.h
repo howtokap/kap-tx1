@@ -82,8 +82,6 @@ class SlewController
     // Utility methods
     void slew(int *x, int *v, int target, int a);
     void moveServos();
-
-    // TODO-DW
 };
 
 // Shutter controller states
@@ -106,7 +104,6 @@ class ShutterController
     // Public API
     void update();
     bool isIdle();
-    // TODO-DW
 };
 
 class Controller
